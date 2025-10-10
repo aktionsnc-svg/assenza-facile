@@ -1,0 +1,41 @@
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Dashboard Allenatore</title>
+            <style>
+              body { font-family: Arial; margin: 40px; }
+              .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; margin-bottom: 20px; width: 480px; }
+            </style>
+          </head>
+          <body>
+            <h1>Allenatore – <%= category %></h1>
+
+            <% 
+              function formatShortDate(isoStr) {
+                try {
+                  const d = new Date(isoStr);
+                  const days = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+                  const months = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
+                  return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
+                } catch {
+                  return isoStr;
+                }
+              }
+            %>
+
+            <div class="card">
+              <h3>Assenze segnalate</h3>
+              <% if (!notifications || notifications.length === 0) { %>
+                <p>Nessuna assenza segnalata.</p>
+              <% } else { %>
+                <ul>
+                  <% notifications.forEach(n => { %>
+                    <li>[<%= formatShortDate(n.date) %>] <%= n.childName %> — <%= n.category %></li>
+                  <% }) %>
+                </ul>
+              <% } %>
+            </div>
+
+            <a href="/login">Logout</a>
+          </body>
+        </html>

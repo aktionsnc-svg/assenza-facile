@@ -1,0 +1,14 @@
+entrypoint = "index.js"
+language = "nodejs"
+
+run = "node index.js"
+
+[nix]
+channel = "stable-24_11"
+
+[env]
+PORT = "3000"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

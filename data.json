@@ -1,0 +1,46 @@
+{
+  "users": [
+    {
+      "name": "Sergio Ruosi",
+      "email": "sergio@aktion-sport.it",
+      "password": "098098",
+      "childName": "Pablo",
+      "category": "2015"
+    }
+  ],
+  "absences": [],
+  "categories": [
+    {
+      "name": "2018-19-20",
+      "days": []
+    },
+    {
+      "name": "2017",
+      "days": []
+    },
+    {
+      "name": "2016",
+      "days": []
+    },
+    {
+      "name": "2015",
+      "days": []
+    },
+    {
+      "name": "2014",
+      "days": []
+    },
+    {
+      "name": "2013-14",
+      "days": []
+    },
+    {
+      "name": "Girls",
+      "days": []
+    },
+    {
+      "name": "Terrapieno",
+      "days": []
+    }
+  ]
+}

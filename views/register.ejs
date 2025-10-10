@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Registrazione</title>
+    <style>
+      body { font-family: Arial; margin: 40px; }
+      input, button, select { margin: 6px 0; padding: 6px; }
+    </style>
+  </head>
+  <body>
+    <h1>Registrazione genitore</h1>
+
+    <% if (error) { %><p style="color:red"><%= error %></p><% } %>
+
+    <% if (!categories || categories.length === 0) { %>
+      <p style="color:red">
+        Nessuna categoria disponibile.<br>
+        Contatta l’amministratore per crearne una prima di registrarti.
+      </p>
+    <% } else { %>
+      <form method="POST" action="/register">
+        <input name="name" placeholder="Nome genitore" required><br>
+        <input name="email" placeholder="Email" required><br>
+        <input type="password" name="password" placeholder="Password" required><br>
+        <input name="childName" placeholder="Nome figlio" required><br>
+
+        <label><b>Categoria del figlio:</b></label><br>
+        <select name="category" required>
+          <option value="">-- Seleziona una categoria --</option>
+          <% categories.forEach(c => { %>
+            <option value="<%= c.name %>"><%= c.name %></option>
+          <% }) %>
+        </select><br><br>
+
+        <button type="submit">Registrati</button>
+      </form>
+    <% } %>
+
+    <p><a href="/login">Torna al login</a></p>
+  </body>
+</html>

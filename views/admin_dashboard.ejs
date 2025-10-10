@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Dashboard Admin</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Arial, sans-serif;
+        background: #f6f8fa;
+        margin: 0;
+        padding: 0;
+      }
+      header {
+        background: #004aad;
+        color: white;
+        padding: 16px 24px;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 24px;
+        padding: 24px;
+      }
+      .card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+      .card h3 {
+        margin-top: 0;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 8px;
+      }
+      input, button {
+        padding: 6px 10px;
+        margin: 4px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+      button {
+        background: #004aad;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #0062e0;
+      }
+      ul { list-style: none; padding: 0; margin: 0; }
+      li { margin-bottom: 6px; }
+      .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 12px;
+      }
+      .calendar-item {
+        background: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 8px 12px;
+      }
+      footer {
+        text-align: center;
+        padding: 12px;
+        font-size: 13px;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>🏫 Dashboard Admin</h1>
+    </header>
+
+    <main>
+      <!-- Colonna 1: categorie -->
+      <section class="card">
+        <h3>➕ Crea nuova categoria</h3>
+        <form method="POST" action="/admin/category">
+          <input name="name" placeholder="Nome categoria" required><br>
+          <p><b>Giorni di allenamento:</b></p>
+          <% const giorni = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"]; %>
+          <% giorni.forEach(g => { %>
+            <label style="display:inline-block;width:90px;">
+              <input type="checkbox" name="days" value="<%= g %>"> <%= g %>
+            </label>
+          <% }) %>
+          <br><br>
+          <button type="submit">Crea categoria</button>
+        </form>
+
+        <h3>📂 Categorie esistenti</h3>
+        <ul>
+          <% (categories || []).forEach(c => { %>
+            <li>
+              <b><%= c.name %></b><br>
+              Giorni: <%= (c.days || []).join(", ") || "—" %><br>
+              <a href="/admin/category/edit/<%= encodeURIComponent(c.name) %>">✏️ Modifica</a>
+            </li>
+          <% }) %>
+        </ul>
+      </section>
+
+      <!-- Colonna 2: calendario -->
+      <section class="card">
+        <h3>📅 Calendario (prossime 2 settimane)</h3>
+        <% if (!categories || categories.length === 0) { %>
+          <p>Nessuna categoria definita.</p>
+        <% } else { %>
+          <div class="calendar-grid">
+            <% categories.forEach(c => { %>
+              <div class="calendar-item">
+                <b><%= c.name %></b><br>
+                <% (calendarByCategory[c.name] || []).forEach(d => { %>
+                  <div><%= d %></div>
+                <% }) %>
+              </div>
+            <% }) %>
+          </div>
+        <% } %>
+      </section>
+
+      <!-- Colonna 3: assenze -->
+      <section class="card">
+        <h3>📍 Assenze segnalate</h3>
+        <% if (!absences || absences.length === 0) { %>
+          <p>Nessuna assenza segnalata.</p>
+        <% } else { %>
+          <ul>
+            <% absences.slice().reverse().forEach(a => { %>
+              <li>
+                <b><%= a.email %></b><br>
+                Data: <%= a.date %>
+              </li>
+            <% }) %>
+          </ul>
+        <% } %>
+      </section>
+    </main>
+
+    <footer>
+      <a href="/login">↩️ Logout</a>
+    </footer>
+  </body>
+</html>

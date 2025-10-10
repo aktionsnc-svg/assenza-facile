@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Modifica categoria</title>
+    <style>
+      body { font-family: Arial; margin: 40px; background:#f6f8fa; }
+      .box {
+        background: white; padding: 24px; border-radius: 12px;
+        max-width: 500px; margin:auto; box-shadow:0 2px 8px rgba(0,0,0,0.1);
+      }
+      button { margin-top: 12px; padding: 8px 16px; background:#004aad; color:white; border:none; border-radius:6px; cursor:pointer; }
+      button:hover { background:#0062e0; }
+      label { display:inline-block; width:120px; }
+    </style>
+  </head>
+  <body>
+    <div class="box">
+      <h2>✏️ Modifica categoria: <%= category.name %></h2>
+      <form method="POST" action="/admin/category/edit/<%= encodeURIComponent(category.name) %>">
+        <p><b>Giorni di allenamento:</b></p>
+        <% const giorni = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"]; %>
+        <% giorni.forEach(g => { 
+             const canon = g.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+             const checked = category.days.includes(canon);
+        %>
+          <label>
+            <input type="checkbox" name="days" value="<%= g %>" <%= checked ? "checked" : "" %>>
+            <%= g %>
+          </label><br>
+        <% }) %>
+        <button type="submit">💾 Salva modifiche</button>
+      </form>
+      <p><a href="/admin">⬅️ Torna alla dashboard</a></p>
+    </div>
+  </body>
+</html>
