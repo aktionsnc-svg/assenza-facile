@@ -1,14 +1,22 @@
 entrypoint = "index.js"
 language = "nodejs"
 
-run = "node index.js"
+# Disattiva qualsiasi agente o test automatico
+run = "npm start"
+modules = ["nodejs-20"]
+
+[unitTest]
+enabled = false
+
+[ai]
+enabled = false
 
 [nix]
 channel = "stable-24_11"
 
-[env]
-PORT = "3000"
+[deployment]
+run = ["sh", "-c", "npm start"]
 
-[[ports]]
-localPort = 3000
-externalPort = 80
+[agent]
+enabled = false
+expertMode = true

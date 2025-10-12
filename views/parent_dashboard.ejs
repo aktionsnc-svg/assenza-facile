@@ -1,62 +1,143 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Dashboard Genitore</title>
-    <style>
-      body { font-family: Arial; margin: 40px; }
-      ul { list-style: none; padding: 0; }
-      li { margin: 6px 0; }
-      form.inline { display: inline; margin-left: 8px; }
-      .card { border: 1px solid #ddd; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
-    </style>
-  </head>
-  <body>
-    <h2>Ciao, <%= user.name %>!</h2>
-    <p>Figlio: <b><%= user.childName %></b> — Categoria: <b><%= user.category %></b></p>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Progressive Web App setup -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#16a34a">
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then(() => console.log('✅ Service worker registrato'))
+        .catch(err => console.error('SW error:', err));
+    }
+  </script>
+  <title>Dashboard Genitore</title>
+  <style>
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #f9fafb;
+      margin: 0;
+    }
 
-    <div class="card">
-      <h3>Prossimi allenamenti (2 settimane)</h3>
-      <% if (!upcoming || upcoming.length === 0) { %>
-        <p>Nessun allenamento programmato per la tua categoria.</p>
-      <% } else { %>
-        <ul>
-          <% upcoming.forEach(e => { %>
-            <li>
-              <%= e.date %>
-              <form class="inline" method="POST" action="/parent/<%= user.email %>/absent">
-                <input type="hidden" name="date" value="<%= e.date %>">
-                <button type="submit">Segnala assenza</button>
-              </form>
-            </li>
-          <% }) %>
-        </ul>
-      <% } %>
-    </div>
 
-    <div class="card">
-      <h3>Assenze già segnalate</h3>
+    h1 {
+      background: linear-gradient(90deg, #16a34a, #166534);
+      color: white;
+      padding: 1rem 2rem;
+      margin: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logout-btn {
+      background: white;
+      color: #166534;
+      border-radius: 6px;
+      padding: 0.4rem 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: 0.2s;
+    }
+
+    .logout-btn:hover {
+      background: #166534;
+      color: white;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+    }
+
+    h2 {
+      color: #166534;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: 0.5rem;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    form {
+      display: inline;
+    }
+
+    button {
+      border: none;
+      background: #16a34a;
+      color: white;
+      padding: 0.3rem 0.7rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #15803d;
+    }
+
+    .absent {
+      background: #dc2626;
+    }
+    .absent:hover {
+      background: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <h1>
+    Benvenuto, <%= user.name %>
+    <a href="/login" class="logout-btn">🔓 Logout</a>
+  </h1>
+
+  <div class="container">
+    <h2>Assenze segnalate</h2>
+    <% if (absences.length === 0) { %>
+      <p>Nessuna assenza segnalata.</p>
+    <% } else { %>
       <ul>
-        <% (absences || []).filter(a => a.email === user.email).forEach(a => { %>
-          <li><%= a.date %></li>
+        <% absences.forEach(a => { %>
+          <li><%= a.formatted %></li>
         <% }) %>
       </ul>
-    </div>
+    <% } %>
 
-    <a href="/login">Logout</a>
-  </body>
-</html>
-
-
-
-    <div class="card">
-      <h3>Assenze già segnalate</h3>
+    <h2>Prossimi allenamenti</h2>
+    <% if (upcoming.length === 0) { %>
+      <p>Nessun allenamento programmato.</p>
+    <% } else { %>
       <ul>
-        <% (absences || []).filter(a => a.email === user.email).forEach(a => { %>
-          <li><%= a.date %></li>
+        <% upcoming.forEach(u => { %>
+          <li>
+            <span><%= u.formatted %></span>
+            <form method="POST" action="/parent/<%= encodeURIComponent(user.email) %>/toggle-absence">
+              <input type="hidden" name="date" value="<%= u.date %>">
+              <% if (u.absent) { %>
+                <button class="absent">Rimuovi assenza</button>
+              <% } else { %>
+                <button>Segnala assenza</button>
+              <% } %>
+            </form>
+          </li>
         <% }) %>
       </ul>
-    </div>
-
-    <a href="/login">Logout</a>
-  </body>
+    <% } %>
+  </div>
+</body>
 </html>

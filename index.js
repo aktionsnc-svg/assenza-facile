@@ -8,7 +8,7 @@ const fs = require("fs");
 const app = express();
 
 // =====================
-// MIDDLEWARE (molto importante su Replit nuovo)
+// MIDDLEWARE
 // =====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -26,7 +26,7 @@ app.use(express.static("public"));
 // =====================
 const adminUser = {
   email: "aktionsnc@gmail.com",
-  password: "Aktion2020!!!"
+  password: "Aktion2020!!!",
 };
 
 // =====================
@@ -36,7 +36,10 @@ const DATA_FILE = path.join(__dirname, "data.json");
 
 function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify({ users: [], absences: [], categories: [] }, null, 2));
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify({ users: [], absences: [], categories: [] }, null, 2),
+    );
   }
 }
 
@@ -57,7 +60,10 @@ ensureDB();
 // =====================
 // HELPER FUNCTIONS
 // =====================
-const normEmail = (e) => String(e || "").trim().toLowerCase();
+const normEmail = (e) =>
+  String(e || "")
+    .trim()
+    .toLowerCase();
 const normPass = (p) => String(p || "").trim();
 
 function normalizeDayName(s) {
@@ -69,18 +75,41 @@ function normalizeDayName(s) {
 }
 
 const DAY_INDEX_CANON = {
-  "domenica": 0,
-  "lunedi": 1,
-  "martedi": 2,
-  "mercoledi": 3,
-  "giovedi": 4,
-  "venerdi": 5,
-  "sabato": 6
+  domenica: 0,
+  lunedi: 1,
+  martedi: 2,
+  mercoledi: 3,
+  giovedi: 4,
+  venerdi: 5,
+  sabato: 6,
 };
 
 function toISODate(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function formatDateShort(isoString) {
+  const giorni = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
+  const mesi = [
+    "GEN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAG",
+    "GIU",
+    "LUG",
+    "AGO",
+    "SET",
+    "OTT",
+    "NOV",
+    "DIC",
+  ];
+  const d = new Date(isoString);
+  const giorno = giorni[d.getDay()];
+  const mese = mesi[d.getMonth()];
+  const giornoNum = String(d.getDate()).padStart(2, "0");
+  return `${giorno} ${giornoNum} ${mese}`;
 }
 
 function computeWindowDatesForCategory(daysNames) {
@@ -102,38 +131,72 @@ function computeWindowDatesForCategory(daysNames) {
 }
 
 // =====================
+// SINCRONIZZAZIONE ASSENZE
+// =====================
+function syncAbsences() {
+  const db = readDB();
+  const users = db.users || [];
+  let absences = db.absences || [];
+  let updated = false;
+
+  absences = absences.map((a) => {
+    const user = users.find((u) => normEmail(u.email) === normEmail(a.email));
+    if (!user) return a;
+    const newA = {
+      ...a,
+      childName: user.childName || a.childName || null,
+      category: user.category || a.category || null,
+    };
+    if (JSON.stringify(newA) !== JSON.stringify(a)) updated = true;
+    return newA;
+  });
+
+  if (updated) {
+    console.log("🔄 Sincronizzazione automatica assenze...");
+    writeDB({ ...db, absences });
+  } else {
+    console.log("✅ Assenze già sincronizzate");
+  }
+}
+syncAbsences();
+
+// =====================
 // ROUTES
 // =====================
-
-// Home redirect
-app.get("/", (_req, res) => res.redirect("/login"));
-
-// ----- LOGIN -----
-app.get("/login", (_req, res) => {
-  res.render("login", { error: null });
+// HOME DI TEST
+app.get("/", (req, res) => {
+  res.send("✅ Server attivo! Vai su /login per accedere all'app.");
 });
+
+// LOGIN
+app.get("/login", (_req, res) => res.render("login", { error: null }));
 
 app.post("/login", (req, res) => {
   const email = normEmail(req.body.email);
   const password = normPass(req.body.password);
-
-  if (email === normEmail(adminUser.email) && password === normPass(adminUser.password)) {
+  if (
+    email === normEmail(adminUser.email) &&
+    password === normPass(adminUser.password)
+  ) {
     return res.redirect("/admin");
   }
-
   const db = readDB();
-  const user = (db.users || []).find(
-    (u) => normEmail(u.email) === email && normPass(u.password) === password
+  const user = db.users.find(
+    (u) => normEmail(u.email) === email && normPass(u.password) === password,
   );
-
   if (user) return res.redirect(`/parent/${user.email}`);
   res.render("login", { error: "Email o password errate" });
 });
 
-// ----- REGISTRAZIONE -----
+// REGISTRAZIONE
 app.get("/register", (_req, res) => {
   const db = readDB();
-  const categories = db.categories || [];
+  const categories = (db.categories || []).sort((a, b) =>
+    a.name
+      .trim()
+      .toLowerCase()
+      .localeCompare(b.name.trim().toLowerCase(), "it"),
+  );
   res.render("register", { error: null, categories });
 });
 
@@ -145,9 +208,17 @@ app.post("/register", (req, res) => {
   const category = req.body.category?.trim();
 
   const db = readDB();
-
-  if ((db.users || []).some((u) => normEmail(u.email) === email)) {
-    return res.render("register", { error: "Utente già registrato!", categories: db.categories });
+  if (db.users.some((u) => normEmail(u.email) === email)) {
+    const categories = (db.categories || []).sort((a, b) =>
+      a.name
+        .trim()
+        .toLowerCase()
+        .localeCompare(b.name.trim().toLowerCase(), "it"),
+    );
+    return res.render("register", {
+      error: "Utente già registrato!",
+      categories,
+    });
   }
 
   db.users.push({ name, email, password, childName, category });
@@ -155,104 +226,105 @@ app.post("/register", (req, res) => {
   res.redirect("/login");
 });
 
-// ----- DASHBOARD GENITORE -----
+// DASHBOARD GENITORE
 app.get("/parent/:email", (req, res) => {
+  const email = normEmail(decodeURIComponent(req.params.email));
   const db = readDB();
-  const user = (db.users || []).find((u) => normEmail(u.email) === normEmail(req.params.email));
+  const user = db.users.find((u) => normEmail(u.email) === email);
   if (!user) return res.redirect("/login");
 
-  const cat = (db.categories || []).find((c) => c.name === user.category);
+  const absences = db.absences || [];
+  const cat = db.categories.find((c) => c.name === user.category);
   const dates = computeWindowDatesForCategory(cat ? cat.days : []);
-  const upcoming = dates.map((d) => ({ date: d }));
+  const upcoming = dates.map((d) => ({
+    date: d,
+    absent: absences.some((a) => a.email === email && a.date === d),
+    formatted: formatDateShort(d),
+  }));
+
+  const userAbsences = absences
+    .filter((a) => a.email === email)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .map((a) => ({ ...a, formatted: formatDateShort(a.date) }));
 
   res.render("parent_dashboard", {
     user,
-    absences: db.absences || [],
+    absences: userAbsences,
     upcoming,
   });
 });
 
-app.post("/parent/:email/absent", (req, res) => {
+// TOGGLE ASSENZA
+app.post("/parent/:email/toggle-absence", (req, res) => {
+  const email = normEmail(decodeURIComponent(req.params.email));
+  const date = String(req.body.date || "").trim();
   const db = readDB();
-  db.absences.push({ email: req.params.email, date: req.body.date });
-  writeDB(db);
-  res.redirect(`/parent/${req.params.email}`);
+  let absences = db.absences || [];
+
+  const user = db.users.find((u) => normEmail(u.email) === email);
+  const exists = absences.find((a) => a.email === email && a.date === date);
+
+  if (exists) {
+    absences = absences.filter((a) => !(a.email === email && a.date === date));
+  } else {
+    absences.push({
+      email,
+      date,
+      childName: user?.childName || null,
+      category: user?.category || null,
+    });
+  }
+
+  writeDB({ ...db, absences });
+  res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
-// ----- DASHBOARD ADMIN -----
+// ADMIN DASHBOARD
 app.get("/admin", (_req, res) => {
   const db = readDB();
-  const categories = db.categories || [];
-  const calendarByCategory = {};
+  const users = db.users || [];
+  const categories = (db.categories || []).sort((a, b) =>
+    a.name
+      .trim()
+      .toLowerCase()
+      .localeCompare(b.name.trim().toLowerCase(), "it"),
+  );
+  let absences = db.absences || [];
 
-  for (const c of categories) {
-    calendarByCategory[c.name] = computeWindowDatesForCategory(c.days || []);
-  }
+  absences = absences.map((a) => {
+    const user = users.find((u) => normEmail(u.email) === normEmail(a.email));
+    const childName = a.childName || user?.childName || "(sconosciuto)";
+    const category = a.category || user?.category || "(non definita)";
+    return { ...a, childName, category, formatted: formatDateShort(a.date) };
+  });
+
+  absences.sort((a, b) => {
+    const dateDiff = new Date(a.date) - new Date(b.date);
+    if (dateDiff !== 0) return dateDiff;
+    const catDiff = a.category.localeCompare(b.category, "it");
+    if (catDiff !== 0) return catDiff;
+    return a.childName.localeCompare(b.childName, "it");
+  });
+
+  // ✅ Calendar as array for proper .forEach()
+  const calendarByCategory = categories.map((c) => ({
+    name: c.name,
+    dates: computeWindowDatesForCategory(c.days || []).map((d) =>
+      formatDateShort(d),
+    ),
+  }));
 
   res.render("admin_dashboard", {
-    absences: db.absences || [],
-    users: db.users || [],
+    absences,
+    users,
     categories,
     calendarByCategory,
+    formatDateShort,
   });
 });
-app.use((req, res, next) => {
-  console.log(`➡️  ${req.method} ${req.url}`);
-  next();
-});
 
-// ----- CREA CATEGORIA -----
-app.post("/admin/category", (req, res) => {
-  const db = readDB();
-  let { name, days } = req.body;
-  if (!name) return res.redirect("/admin");
-
-  if (!days) days = [];
-  if (!Array.isArray(days)) days = [days];
-  const normalized = days.map(normalizeDayName);
-
-  if (db.categories.some((c) => c.name === name)) return res.redirect("/admin");
-
-  db.categories.push({ name, days: normalized });
-  writeDB(db);
-  console.log("✅ Categoria creata:", name);
-  res.redirect("/admin");
-});
-
-// ----- MODIFICA CATEGORIA (GET) -----
-app.get("/admin/category/edit/:name", (req, res) => {
-  const db = readDB();
-  const nameDecoded = decodeURIComponent(req.params.name);
-  const category = (db.categories || []).find((c) => c.name === nameDecoded);
-  if (!category) {
-    console.log("❌ Categoria non trovata:", nameDecoded);
-    return res.redirect("/admin");
-  }
-  res.render("edit_category", { category });
-});
-
-// ----- MODIFICA CATEGORIA (POST) -----
-app.post("/admin/category/edit/:name", (req, res) => {
-  const db = readDB();
-  const nameDecoded = decodeURIComponent(req.params.name);
-  const category = (db.categories || []).find((c) => c.name === nameDecoded);
-  if (!category) {
-    console.log("❌ Categoria non trovata (POST):", nameDecoded);
-    return res.redirect("/admin");
-  }
-
-  let days = req.body.days;
-  if (!days) days = [];
-  if (!Array.isArray(days)) days = [days];
-  category.days = days.map(normalizeDayName);
-
-  writeDB(db);
-  console.log("✅ Categoria aggiornata:", category);
-  res.redirect("/admin");
-});
-
-// =====================
-// START SERVER (fix per Replit nuovo)
-// =====================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => console.log(`✅ Server avviato su porta ${PORT}`));
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`✅ Server avviato su porta ${PORT}`);
+  console.log(`🌐 App pronta su Replit!`);
+});
