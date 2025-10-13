@@ -8,32 +8,7 @@
       "category": "2015"
     }
   ],
-  "absences": [
-    {
-      "email": "sergio@aktion-sport.it",
-      "date": "2025-10-15",
-      "childName": "Ruosi Pablo",
-      "category": "2015"
-    },
-    {
-      "email": "sergio@aktion-sport.it",
-      "date": "2025-10-13",
-      "childName": "Ruosi Pablo",
-      "category": "2015"
-    },
-    {
-      "email": "sergio@aktion-sport.it",
-      "date": "2025-10-22",
-      "childName": "Ruosi Pablo",
-      "category": "2015"
-    },
-    {
-      "email": "sergio@aktion-sport.it",
-      "date": "2025-10-20",
-      "childName": "Ruosi Pablo",
-      "category": "2015"
-    }
-  ],
+  "absences": [],
   "categories": [
     {
       "name": "2015",

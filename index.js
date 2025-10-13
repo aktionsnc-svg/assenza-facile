@@ -26,7 +26,7 @@ app.use(express.static("public"));
 // =====================
 const adminUser = {
   email: "aktionsnc@gmail.com",
-  password: "Aktion2020!!!",
+  password: "Aktion2020!!!"
 };
 
 // =====================
@@ -38,7 +38,7 @@ function ensureDB() {
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(
       DATA_FILE,
-      JSON.stringify({ users: [], absences: [], categories: [] }, null, 2),
+      JSON.stringify({ users: [], absences: [], categories: [] }, null, 2)
     );
   }
 }
@@ -60,10 +60,7 @@ ensureDB();
 // =====================
 // HELPER FUNCTIONS
 // =====================
-const normEmail = (e) =>
-  String(e || "")
-    .trim()
-    .toLowerCase();
+const normEmail = (e) => String(e || "").trim().toLowerCase();
 const normPass = (p) => String(p || "").trim();
 
 function normalizeDayName(s) {
@@ -81,7 +78,7 @@ const DAY_INDEX_CANON = {
   mercoledi: 3,
   giovedi: 4,
   venerdi: 5,
-  sabato: 6,
+  sabato: 6
 };
 
 function toISODate(d) {
@@ -91,20 +88,7 @@ function toISODate(d) {
 
 function formatDateShort(isoString) {
   const giorni = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
-  const mesi = [
-    "GEN",
-    "FEB",
-    "MAR",
-    "APR",
-    "MAG",
-    "GIU",
-    "LUG",
-    "AGO",
-    "SET",
-    "OTT",
-    "NOV",
-    "DIC",
-  ];
+  const mesi = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
   const d = new Date(isoString);
   const giorno = giorni[d.getDay()];
   const mese = mesi[d.getMonth()];
@@ -131,71 +115,41 @@ function computeWindowDatesForCategory(daysNames) {
 }
 
 // =====================
-// SINCRONIZZAZIONE ASSENZE
-// =====================
-function syncAbsences() {
-  const db = readDB();
-  const users = db.users || [];
-  let absences = db.absences || [];
-  let updated = false;
-
-  absences = absences.map((a) => {
-    const user = users.find((u) => normEmail(u.email) === normEmail(a.email));
-    if (!user) return a;
-    const newA = {
-      ...a,
-      childName: user.childName || a.childName || null,
-      category: user.category || a.category || null,
-    };
-    if (JSON.stringify(newA) !== JSON.stringify(a)) updated = true;
-    return newA;
-  });
-
-  if (updated) {
-    console.log("🔄 Sincronizzazione automatica assenze...");
-    writeDB({ ...db, absences });
-  } else {
-    console.log("✅ Assenze già sincronizzate");
-  }
-}
-syncAbsences();
-
-// =====================
 // ROUTES
 // =====================
-// HOME DI TEST
+
+// Home di test
 app.get("/", (req, res) => {
   res.send("✅ Server attivo! Vai su /login per accedere all'app.");
 });
 
-// LOGIN
-app.get("/login", (_req, res) => res.render("login", { error: null }));
+// ----- LOGIN -----
+app.get("/login", (_req, res) => {
+  res.render("login", { error: null });
+});
 
 app.post("/login", (req, res) => {
   const email = normEmail(req.body.email);
   const password = normPass(req.body.password);
-  if (
-    email === normEmail(adminUser.email) &&
-    password === normPass(adminUser.password)
-  ) {
+
+  if (email === normEmail(adminUser.email) && password === normPass(adminUser.password)) {
     return res.redirect("/admin");
   }
+
   const db = readDB();
-  const user = db.users.find(
-    (u) => normEmail(u.email) === email && normPass(u.password) === password,
+  const user = (db.users || []).find(
+    (u) => normEmail(u.email) === email && normPass(u.password) === password
   );
+
   if (user) return res.redirect(`/parent/${user.email}`);
   res.render("login", { error: "Email o password errate" });
 });
 
-// REGISTRAZIONE
+// ----- REGISTRAZIONE -----
 app.get("/register", (_req, res) => {
   const db = readDB();
-  const categories = (db.categories || []).sort((a, b) =>
-    a.name
-      .trim()
-      .toLowerCase()
-      .localeCompare(b.name.trim().toLowerCase(), "it"),
+  const categories = [...(db.categories || [])].sort((a, b) =>
+    a.name.localeCompare(b.name)
   );
   res.render("register", { error: null, categories });
 });
@@ -208,17 +162,9 @@ app.post("/register", (req, res) => {
   const category = req.body.category?.trim();
 
   const db = readDB();
-  if (db.users.some((u) => normEmail(u.email) === email)) {
-    const categories = (db.categories || []).sort((a, b) =>
-      a.name
-        .trim()
-        .toLowerCase()
-        .localeCompare(b.name.trim().toLowerCase(), "it"),
-    );
-    return res.render("register", {
-      error: "Utente già registrato!",
-      categories,
-    });
+
+  if ((db.users || []).some((u) => normEmail(u.email) === email)) {
+    return res.render("register", { error: "Utente già registrato!", categories: db.categories });
   }
 
   db.users.push({ name, email, password, childName, category });
@@ -226,105 +172,110 @@ app.post("/register", (req, res) => {
   res.redirect("/login");
 });
 
-// DASHBOARD GENITORE
+// ----- DASHBOARD GENITORE -----
 app.get("/parent/:email", (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const db = readDB();
-  const user = db.users.find((u) => normEmail(u.email) === email);
+
+  const user = db.users.find(u => normEmail(u.email) === email);
   if (!user) return res.redirect("/login");
 
-  const absences = db.absences || [];
-  const cat = db.categories.find((c) => c.name === user.category);
-  const dates = computeWindowDatesForCategory(cat ? cat.days : []);
-  const upcoming = dates.map((d) => ({
+  const absences = Array.isArray(db.absences) ? db.absences : [];
+  const cat = db.categories.find(c => c.name === user.category);
+
+  const dates = computeWindowDatesForCategory(cat ? (cat.days || []) : []);
+  const upcoming = dates.map(d => ({
     date: d,
-    absent: absences.some((a) => a.email === email && a.date === d),
-    formatted: formatDateShort(d),
+    absent: absences.some(a => a.email === email && a.date === d)
   }));
 
-  const userAbsences = absences
-    .filter((a) => a.email === email)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .map((a) => ({ ...a, formatted: formatDateShort(a.date) }));
-
-  res.render("parent_dashboard", {
-    user,
-    absences: userAbsences,
-    upcoming,
-  });
+  res.render("parent_dashboard", { user, absences, upcoming, formatDateShort });
 });
 
-// TOGGLE ASSENZA
+// ----- TOGGLE ASSENZA -----
 app.post("/parent/:email/toggle-absence", (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const date = String(req.body.date || "").trim();
-  const db = readDB();
-  let absences = db.absences || [];
 
-  const user = db.users.find((u) => normEmail(u.email) === email);
-  const exists = absences.find((a) => a.email === email && a.date === date);
+  const db = readDB();
+  let absences = Array.isArray(db.absences) ? db.absences : [];
+
+  const exists = absences.find(a => a.email === email && a.date === date);
 
   if (exists) {
-    absences = absences.filter((a) => !(a.email === email && a.date === date));
+    absences = absences.filter(a => !(a.email === email && a.date === date));
   } else {
-    absences.push({
-      email,
-      date,
-      childName: user?.childName || null,
-      category: user?.category || null,
-    });
+    absences.push({ email, date });
   }
 
   writeDB({ ...db, absences });
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
-// ADMIN DASHBOARD
+// ----- ADMIN DASHBOARD -----
 app.get("/admin", (_req, res) => {
   const db = readDB();
-  const users = db.users || [];
-  const categories = (db.categories || []).sort((a, b) =>
-    a.name
-      .trim()
-      .toLowerCase()
-      .localeCompare(b.name.trim().toLowerCase(), "it"),
-  );
-  let absences = db.absences || [];
+  const absences = Array.isArray(db.absences) ? db.absences : [];
+  const users = Array.isArray(db.users) ? db.users : [];
+  const categories = Array.isArray(db.categories) ? db.categories : [];
 
-  absences = absences.map((a) => {
-    const user = users.find((u) => normEmail(u.email) === normEmail(a.email));
-    const childName = a.childName || user?.childName || "(sconosciuto)";
-    const category = a.category || user?.category || "(non definita)";
-    return { ...a, childName, category, formatted: formatDateShort(a.date) };
-  });
+  // Ordina assenze in modo cronologico, poi per categoria e nome figlio
+  const sortedAbsences = absences
+    .map(a => {
+      const u = users.find(u => normEmail(u.email) === normEmail(a.email));
+      return {
+        ...a,
+        category: u?.category || "-",
+        childName: u?.childName || "-"
+      };
+    })
+    .sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return a.childName.localeCompare(b.childName);
+    });
 
-  absences.sort((a, b) => {
-    const dateDiff = new Date(a.date) - new Date(b.date);
-    if (dateDiff !== 0) return dateDiff;
-    const catDiff = a.category.localeCompare(b.category, "it");
-    if (catDiff !== 0) return catDiff;
-    return a.childName.localeCompare(b.childName, "it");
-  });
-
-  // ✅ Calendar as array for proper .forEach()
-  const calendarByCategory = categories.map((c) => ({
-    name: c.name,
-    dates: computeWindowDatesForCategory(c.days || []).map((d) =>
-      formatDateShort(d),
-    ),
-  }));
+  const calendarByCategory = {};
+  for (const c of categories) {
+    const dates = computeWindowDatesForCategory(c.days || []);
+    calendarByCategory[c.name] = dates;
+  }
 
   res.render("admin_dashboard", {
-    absences,
+    absences: sortedAbsences,
     users,
-    categories,
+    categories: [...categories].sort((a, b) => a.name.localeCompare(b.name)),
     calendarByCategory,
-    formatDateShort,
+    formatDateShort
   });
 });
 
+// ----- CREA NUOVA CATEGORIA -----
+app.post("/admin/category", (req, res) => {
+  const db = readDB();
+  let { name, days } = req.body;
+
+  if (!name) return res.redirect("/admin");
+  if (!days) days = [];
+  if (!Array.isArray(days)) days = [days];
+
+  days = days.map(d => d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+
+  const categories = Array.isArray(db.categories) ? db.categories : [];
+
+  const existing = categories.find(c => c.name === name);
+  if (existing) existing.days = days;
+  else categories.push({ name, days });
+
+  writeDB({ ...db, categories });
+  res.redirect("/admin");
+});
+
+// =====================
+// SERVER
+// =====================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, "0.0.0.0", () => {
+const HOST = "0.0.0.0";
+app.listen(PORT, HOST, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
-  console.log(`🌐 App pronta su Replit!`);
 });
