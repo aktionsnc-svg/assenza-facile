@@ -118,10 +118,11 @@ function computeWindowDatesForCategory(daysNames) {
 // ROUTES
 // =====================
 
-// Home di test
+// // Home → redirect diretto al login
 app.get("/", (req, res) => {
-  res.send("✅ Server attivo! Vai su /login per accedere all'app.");
+  res.redirect("/login");
 });
+
 
 // ----- LOGIN -----
 app.get("/login", (_req, res) => {
