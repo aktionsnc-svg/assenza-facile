@@ -30,32 +30,57 @@ const adminUser = {
 };
 
 // =====================
-// FILE DATABASE
+// FILE DATABASE (con protezione + backup)
 // =====================
 const DATA_FILE = path.join(__dirname, "data.json");
+const BACKUP_FILE = path.join(__dirname, "data_backup.json");
 
 function ensureDB() {
-  if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(
-      DATA_FILE,
-      JSON.stringify({ users: [], absences: [], categories: [] }, null, 2)
-    );
+  try {
+    // Se il file esiste ed è leggibile, non toccarlo
+    if (fs.existsSync(DATA_FILE)) {
+      const existing = fs.readFileSync(DATA_FILE, "utf8");
+      if (existing && existing.trim().startsWith("{")) {
+        console.log("✅ Database già presente, nessuna modifica.");
+        return;
+      }
+    }
+
+    // Se non esiste o è corrotto, crea un nuovo file
+    const initialData = { users: [], absences: [], categories: [] };
+    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    console.log("🆕 Database creato ex novo.");
+  } catch (err) {
+    console.error("❌ Errore durante la verifica/creazione del database:", err);
   }
 }
 
 function readDB() {
   try {
-    return JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
-  } catch {
+    const content = fs.readFileSync(DATA_FILE, "utf8");
+    return JSON.parse(content);
+  } catch (err) {
+    console.error("⚠️ Errore lettura DB:", err);
     return { users: [], absences: [], categories: [] };
   }
 }
 
 function writeDB(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+  try {
+    // Scrive il file principale
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+
+    // E crea un backup aggiornato
+    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
+
+    console.log("💾 Database salvato e backup aggiornato.");
+  } catch (err) {
+    console.error("❌ Errore scrittura DB:", err);
+  }
 }
 
 ensureDB();
+
 
 // =====================
 // HELPER FUNCTIONS
