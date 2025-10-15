@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#007bff">
+
   <meta charset="UTF-8" />
   <!-- Progressive Web App setup -->
   <link rel="manifest" href="/manifest.json">
@@ -129,5 +132,13 @@
 
     <a href="/register" class="link">📝 Non hai un account? Registrati</a>
   </div>
+      <script>
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.register("/sw.js").then(() => {
+            console.log("✅ Service Worker registrato!");
+          });
+        }
+      </script>
+
 </body>
 </html>
