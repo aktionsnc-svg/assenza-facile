@@ -3,9 +3,10 @@
 // =====================
 const express = require("express");
 const path = require("path");
-const fs = require("fs");
+const Database = require("@replit/database");
 
 const app = express();
+const db = new Database();
 
 // =====================
 // MIDDLEWARE
@@ -20,6 +21,7 @@ app.set("view engine", "ejs");
 app.engine("ejs", require("ejs").__express);
 app.set("views", path.join(__dirname, "views"));
 app.use(express.static("public"));
+app.use('/public', express.static(path.join(__dirname, 'public')));
 
 // =====================
 // ADMIN PREDEFINITO
@@ -30,57 +32,26 @@ const adminUser = {
 };
 
 // =====================
-// FILE DATABASE (con protezione + backup)
+// DATABASE CLOUD (Replit DB)
 // =====================
-const DATA_FILE = path.join(__dirname, "data.json");
-const BACKUP_FILE = path.join(__dirname, "data_backup.json");
-
-function ensureDB() {
+async function readDB() {
   try {
-    // Se il file esiste ed è leggibile, non toccarlo
-    if (fs.existsSync(DATA_FILE)) {
-      const existing = fs.readFileSync(DATA_FILE, "utf8");
-      if (existing && existing.trim().startsWith("{")) {
-        console.log("✅ Database già presente, nessuna modifica.");
-        return;
-      }
-    }
-
-    // Se non esiste o è corrotto, crea un nuovo file
-    const initialData = { users: [], absences: [], categories: [] };
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
-    console.log("🆕 Database creato ex novo.");
+    const data = await db.get("appdata");
+    return data || { users: [], absences: [], categories: [] };
   } catch (err) {
-    console.error("❌ Errore durante la verifica/creazione del database:", err);
-  }
-}
-
-function readDB() {
-  try {
-    const content = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(content);
-  } catch (err) {
-    console.error("⚠️ Errore lettura DB:", err);
+    console.error("❌ Errore lettura DB remoto:", err);
     return { users: [], absences: [], categories: [] };
   }
 }
 
-function writeDB(data) {
+async function writeDB(data) {
   try {
-    // Scrive il file principale
-    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-
-    // E crea un backup aggiornato
-    fs.writeFileSync(BACKUP_FILE, JSON.stringify(data, null, 2));
-
-    console.log("💾 Database salvato e backup aggiornato.");
+    await db.set("appdata", data);
+    console.log("💾 Dati salvati nel Replit DB cloud");
   } catch (err) {
-    console.error("❌ Errore scrittura DB:", err);
+    console.error("❌ Errore scrittura DB remoto:", err);
   }
 }
-
-ensureDB();
-
 
 // =====================
 // HELPER FUNCTIONS
@@ -143,18 +114,17 @@ function computeWindowDatesForCategory(daysNames) {
 // ROUTES
 // =====================
 
-// // Home → redirect diretto al login
+// Home di test
 app.get("/", (req, res) => {
   res.redirect("/login");
 });
-
 
 // ----- LOGIN -----
 app.get("/login", (_req, res) => {
   res.render("login", { error: null });
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const email = normEmail(req.body.email);
   const password = normPass(req.body.password);
 
@@ -162,8 +132,8 @@ app.post("/login", (req, res) => {
     return res.redirect("/admin");
   }
 
-  const db = readDB();
-  const user = (db.users || []).find(
+  const data = await readDB();
+  const user = (data.users || []).find(
     (u) => normEmail(u.email) === email && normPass(u.password) === password
   );
 
@@ -172,42 +142,42 @@ app.post("/login", (req, res) => {
 });
 
 // ----- REGISTRAZIONE -----
-app.get("/register", (_req, res) => {
-  const db = readDB();
-  const categories = [...(db.categories || [])].sort((a, b) =>
+app.get("/register", async (_req, res) => {
+  const data = await readDB();
+  const categories = [...(data.categories || [])].sort((a, b) =>
     a.name.localeCompare(b.name)
   );
   res.render("register", { error: null, categories });
 });
 
-app.post("/register", (req, res) => {
+app.post("/register", async (req, res) => {
   const name = req.body.name?.trim();
   const email = normEmail(req.body.email);
   const password = normPass(req.body.password);
   const childName = req.body.childName?.trim();
   const category = req.body.category?.trim();
 
-  const db = readDB();
+  const data = await readDB();
 
-  if ((db.users || []).some((u) => normEmail(u.email) === email)) {
-    return res.render("register", { error: "Utente già registrato!", categories: db.categories });
+  if ((data.users || []).some((u) => normEmail(u.email) === email)) {
+    return res.render("register", { error: "Utente già registrato!", categories: data.categories });
   }
 
-  db.users.push({ name, email, password, childName, category });
-  writeDB(db);
+  data.users.push({ name, email, password, childName, category });
+  await writeDB(data);
   res.redirect("/login");
 });
 
 // ----- DASHBOARD GENITORE -----
-app.get("/parent/:email", (req, res) => {
+app.get("/parent/:email", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
-  const db = readDB();
+  const data = await readDB();
 
-  const user = db.users.find(u => normEmail(u.email) === email);
+  const user = data.users.find(u => normEmail(u.email) === email);
   if (!user) return res.redirect("/login");
 
-  const absences = Array.isArray(db.absences) ? db.absences : [];
-  const cat = db.categories.find(c => c.name === user.category);
+  const absences = Array.isArray(data.absences) ? data.absences : [];
+  const cat = data.categories.find(c => c.name === user.category);
 
   const dates = computeWindowDatesForCategory(cat ? (cat.days || []) : []);
   const upcoming = dates.map(d => ({
@@ -219,12 +189,12 @@ app.get("/parent/:email", (req, res) => {
 });
 
 // ----- TOGGLE ASSENZA -----
-app.post("/parent/:email/toggle-absence", (req, res) => {
+app.post("/parent/:email/toggle-absence", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const date = String(req.body.date || "").trim();
 
-  const db = readDB();
-  let absences = Array.isArray(db.absences) ? db.absences : [];
+  const data = await readDB();
+  let absences = Array.isArray(data.absences) ? data.absences : [];
 
   const exists = absences.find(a => a.email === email && a.date === date);
 
@@ -234,18 +204,18 @@ app.post("/parent/:email/toggle-absence", (req, res) => {
     absences.push({ email, date });
   }
 
-  writeDB({ ...db, absences });
+  data.absences = absences;
+  await writeDB(data);
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
 // ----- ADMIN DASHBOARD -----
-app.get("/admin", (_req, res) => {
-  const db = readDB();
-  const absences = Array.isArray(db.absences) ? db.absences : [];
-  const users = Array.isArray(db.users) ? db.users : [];
-  const categories = Array.isArray(db.categories) ? db.categories : [];
+app.get("/admin", async (_req, res) => {
+  const data = await readDB();
+  const absences = Array.isArray(data.absences) ? data.absences : [];
+  const users = Array.isArray(data.users) ? data.users : [];
+  const categories = Array.isArray(data.categories) ? data.categories : [];
 
-  // Ordina assenze in modo cronologico, poi per categoria e nome figlio
   const sortedAbsences = absences
     .map(a => {
       const u = users.find(u => normEmail(u.email) === normEmail(a.email));
@@ -277,8 +247,8 @@ app.get("/admin", (_req, res) => {
 });
 
 // ----- CREA NUOVA CATEGORIA -----
-app.post("/admin/category", (req, res) => {
-  const db = readDB();
+app.post("/admin/category", async (req, res) => {
+  const data = await readDB();
   let { name, days } = req.body;
 
   if (!name) return res.redirect("/admin");
@@ -287,21 +257,22 @@ app.post("/admin/category", (req, res) => {
 
   days = days.map(d => d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
 
-  const categories = Array.isArray(db.categories) ? db.categories : [];
+  const categories = Array.isArray(data.categories) ? data.categories : [];
 
   const existing = categories.find(c => c.name === name);
   if (existing) existing.days = days;
   else categories.push({ name, days });
 
-  writeDB({ ...db, categories });
+  data.categories = categories;
+  await writeDB(data);
   res.redirect("/admin");
 });
 
 // =====================
 // SERVER
 // =====================
-const PORT = process.env.PORT || 3000;
-const HOST = "0.0.0.0";
-app.listen(PORT, HOST, () => {
+const PORT = 3000;
+app.listen(PORT, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
+  console.log(`🌐 App pronta!`);
 });
