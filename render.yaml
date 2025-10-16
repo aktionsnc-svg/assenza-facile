@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: assenza-facile
+    env: node
+    rootDir: .
+    buildCommand: "npm install"
+    startCommand: "npm start"
+    plan: free
+    autoDeploy: true
