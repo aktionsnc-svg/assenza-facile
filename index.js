@@ -36,7 +36,8 @@ const adminUser = {
 // =====================
 async function readDB() {
   try {
-    const data = await db.get("appdata");
+    const response = await db.get("appdata");
+    const data = response && response.value ? response.value : response;
     return data || { users: [], absences: [], categories: [] };
   } catch (err) {
     console.error("❌ Errore lettura DB remoto:", err);
