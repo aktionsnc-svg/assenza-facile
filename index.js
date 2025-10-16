@@ -6,7 +6,7 @@ const path = require("path");
 const Database = require("@replit/database");
 
 const app = express();
-const db = new Database();
+const db = new Database(process.env.REPLIT_DB_URL);
 
 // =====================
 // MIDDLEWARE
