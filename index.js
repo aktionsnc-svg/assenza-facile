@@ -8,6 +8,10 @@ const db = new ReplitDB(process.env.REPLIT_DB_URL);
 
 const app = express();
 
+// 🧩 Fix EJS rendering su Render
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
 // ✅ Serve file statici dalla cartella /public
 app.use(express.static(path.join(__dirname, "public")));
 
