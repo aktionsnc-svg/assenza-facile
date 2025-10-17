@@ -5,26 +5,26 @@ const express = require("express");
 const path = require("path");
 const ReplitDB = require("@replit/database");
 const db = new ReplitDB(process.env.REPLIT_DB_URL);
+
 const app = express();
 
 // =====================
-// CONFIGURAZIONE BASE
+// CONFIG
 // =====================
-
-// 🧩 Middleware per leggere i form HTML e JSON
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
-
-// ✅ Cartella pubblica per file statici (CSS, JS, manifest, icone)
+app.set("view engine", "ejs");
+app.engine("ejs", require("ejs").__express);
+app.set("views", path.join(__dirname, "views"));
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Rotte esplicite obbligatorie su Render (manifest e service worker)
-app.get("/manifest.json", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "manifest.json"));
-});
-app.get("/service-worker.js", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "service-worker.js"));
-});
+// Serve manifest e service worker
+app.get("/manifest.json", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "manifest.json"))
+);
+app.get("/service-worker.js", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "service-worker.js"))
+);
 
 // =====================
 // ADMIN PREDEFINITO
@@ -32,7 +32,7 @@ app.get("/service-worker.js", (req, res) => {
 const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
 
 // =====================
-// FUNZIONI DATABASE
+// FUNZIONI DB
 // =====================
 async function readDB() {
   try {
@@ -100,17 +100,17 @@ function formatDateShort(isoString) {
 }
 
 // =====================
-// VIEW ENGINE
-// =====================
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
-
-// =====================
 // ROTTE APP
 // =====================
 
-// Home → redirect login
-app.get("/", (req, res) => res.redirect("/login"));
+// Pagina di caricamento o redirect (Render wake-up)
+app.get("/", (req, res) => {
+  if (!global.serverReady) {
+    res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
+  } else {
+    res.redirect("/login");
+  }
+});
 
 // ----- LOGIN -----
 app.get("/login", (_req, res) => res.render("login", { error: null }));
@@ -132,7 +132,7 @@ app.post("/login", async (req, res) => {
     res.render("login", { error: "Email o password errate" });
   } catch (err) {
     console.error("❌ Errore login:", err);
-    res.render("login", { error: "Errore interno, riprova più tardi." });
+    res.render("login", { error: "Errore interno del server" });
   }
 });
 
@@ -155,7 +155,7 @@ app.post("/register", async (req, res) => {
   res.redirect("/login");
 });
 
-// ----- DASHBOARD GENITORE -----
+// ----- GENITORE -----
 app.get("/parent/:email", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const data = await readDB();
@@ -186,7 +186,7 @@ app.post("/parent/:email/toggle-absence", async (req, res) => {
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
-// ----- DASHBOARD ADMIN -----
+// ----- ADMIN -----
 app.get("/admin", async (_req, res) => {
   const data = await readDB();
   const absences = Array.isArray(data.absences) ? data.absences : [];
@@ -223,7 +223,6 @@ app.get("/admin", async (_req, res) => {
   });
 });
 
-// ----- CREA NUOVA CATEGORIA -----
 app.post("/admin/category", async (req, res) => {
   const data = await readDB();
   let { name, days } = req.body;
@@ -247,4 +246,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
   console.log("🌐 App pronta!");
+  global.serverReady = true;
 });
