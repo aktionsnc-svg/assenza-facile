@@ -5,34 +5,25 @@ const express = require("express");
 const path = require("path");
 const ReplitDB = require("@replit/database");
 const db = new ReplitDB(process.env.REPLIT_DB_URL);
-
 const app = express();
 
-// 🧩 Fix EJS rendering su Render
-app.set("view engine", "ejs");
-app.set("views", path.join(__dirname, "views"));
+// =====================
+// CONFIGURAZIONE BASE
+// =====================
 
-// ✅ Serve file statici dalla cartella /public
+// 🧩 Middleware per leggere i form HTML e JSON
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+// ✅ Cartella pubblica per file statici (CSS, JS, manifest, icone)
 app.use(express.static(path.join(__dirname, "public")));
 
-// ✅ Serve il manifest.json e il service worker esplicitamente
+// ✅ Rotte esplicite obbligatorie su Render (manifest e service worker)
 app.get("/manifest.json", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "manifest.json"));
 });
 app.get("/service-worker.js", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "service-worker.js"));
-});
-
-// 🔍 Route di test per diagnosi
-app.get("/test-paths", (req, res) => {
-  const fs = require("fs");
-  res.json({
-    publicExists: fs.existsSync(path.join(__dirname, "public")),
-    manifestExists: fs.existsSync(path.join(__dirname, "public", "manifest.json")),
-    swExists: fs.existsSync(path.join(__dirname, "public", "service-worker.js")),
-    publicPath: path.join(__dirname, "public"),
-    files: fs.readdirSync(path.join(__dirname, "public"))
-  });
 });
 
 // =====================
@@ -41,7 +32,7 @@ app.get("/test-paths", (req, res) => {
 const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
 
 // =====================
-// FUNZIONI DB
+// FUNZIONI DATABASE
 // =====================
 async function readDB() {
   try {
@@ -109,29 +100,43 @@ function formatDateShort(isoString) {
 }
 
 // =====================
+// VIEW ENGINE
+// =====================
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+// =====================
 // ROTTE APP
 // =====================
+
+// Home → redirect login
 app.get("/", (req, res) => res.redirect("/login"));
 
+// ----- LOGIN -----
 app.get("/login", (_req, res) => res.render("login", { error: null }));
 
 app.post("/login", async (req, res) => {
-  const email = normEmail(req.body.email);
-  const password = normPass(req.body.password);
+  try {
+    const email = normEmail(req.body.email);
+    const password = normPass(req.body.password);
 
-  if (email === normEmail(adminUser.email) && password === normPass(adminUser.password))
-    return res.redirect("/admin");
+    if (email === normEmail(adminUser.email) && password === normPass(adminUser.password))
+      return res.redirect("/admin");
 
-  const data = await readDB();
-  const user = (data.users || []).find(
-    (u) => normEmail(u.email) === email && normPass(u.password) === password
-  );
+    const data = await readDB();
+    const user = (data.users || []).find(
+      (u) => normEmail(u.email) === email && normPass(u.password) === password
+    );
 
-  if (user) return res.redirect(`/parent/${user.email}`);
-  res.render("login", { error: "Email o password errate" });
+    if (user) return res.redirect(`/parent/${user.email}`);
+    res.render("login", { error: "Email o password errate" });
+  } catch (err) {
+    console.error("❌ Errore login:", err);
+    res.render("login", { error: "Errore interno, riprova più tardi." });
+  }
 });
 
-// --- REGISTRAZIONE ---
+// ----- REGISTRAZIONE -----
 app.get("/register", async (_req, res) => {
   const data = await readDB();
   const categories = [...(data.categories || [])].sort((a, b) =>
@@ -150,7 +155,7 @@ app.post("/register", async (req, res) => {
   res.redirect("/login");
 });
 
-// --- GENITORE ---
+// ----- DASHBOARD GENITORE -----
 app.get("/parent/:email", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const data = await readDB();
@@ -181,7 +186,7 @@ app.post("/parent/:email/toggle-absence", async (req, res) => {
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
-// --- ADMIN ---
+// ----- DASHBOARD ADMIN -----
 app.get("/admin", async (_req, res) => {
   const data = await readDB();
   const absences = Array.isArray(data.absences) ? data.absences : [];
@@ -218,6 +223,7 @@ app.get("/admin", async (_req, res) => {
   });
 });
 
+// ----- CREA NUOVA CATEGORIA -----
 app.post("/admin/category", async (req, res) => {
   const data = await readDB();
   let { name, days } = req.body;
