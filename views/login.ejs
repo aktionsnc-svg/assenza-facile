@@ -7,9 +7,6 @@
   <!-- Progressive Web App setup -->
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#16a34a">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Assenza Facile">
 
   <title>Accesso Genitore / Admin</title>
 
@@ -152,79 +149,49 @@
   </div>
 
   <script>
-    // ✅ Registrazione del Service Worker
+    // 🔹 Registra il Service Worker
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker
-        .register("/service-worker.js", { scope: "/" })
+      navigator.serviceWorker.register("/service-worker.js")
         .then(() => console.log("✅ Service Worker registrato"))
         .catch(err => console.error("❌ Errore Service Worker:", err));
     }
 
-    // ✅ Gestione evento "beforeinstallprompt"
+    // 🔹 Gestione installazione PWA
     let deferredPrompt;
     const installBtn = document.getElementById("installBtn");
 
+    // Mostra sempre il bottone se l'app non è installata
+    window.addEventListener("load", () => {
+      if (!window.matchMedia('(display-mode: standalone)').matches) {
+        installBtn.style.display = "block";
+      }
+    });
+
+    // Mostra bottone anche quando Chrome emette l'evento nativo
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      installBtn.style.display = "block"; // mostra pulsante personalizzato
-    });
-
-    installBtn.addEventListener("click", async () => {
-      if (!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      console.log("Scelta utente:", outcome);
-      deferredPrompt = null;
-      installBtn.style.display = "none";
-    });
-
-    // ✅ Mostra sempre il pulsante su iOS (fallback manuale)
-    const isIOS = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
-    const isInStandalone = window.navigator.standalone === true;
-    if (isIOS && !isInStandalone) {
       installBtn.style.display = "block";
-      installBtn.textContent = "📲 Aggiungi a Home (Safari: Condividi → Aggiungi)";
-    }
+    });
 
+    // Azione quando l'utente clicca su "Installa"
+    installBtn.addEventListener("click", async () => {
+      installBtn.style.display = "none";
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`Scelta utente: ${outcome}`);
+        deferredPrompt = null;
+      } else {
+        alert("Per installare: apri il menu del browser e scegli 'Aggiungi a schermata Home'.");
+      }
+    });
+
+    // Quando l'app è installata
     window.addEventListener("appinstalled", () => {
       console.log("📱 Assenza Facile installata con successo!");
+      installBtn.style.display = "none";
     });
   </script>
-      <script>
-        // 🔹 Registra il Service Worker
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/service-worker.js')
-            .then(() => console.log('✅ Service Worker registrato'))
-            .catch(err => console.error('❌ Errore Service Worker:', err));
-        }
-
-        // 🔹 Gestione installazione PWA
-        let deferredPrompt;
-        const installBtn = document.getElementById('installBtn');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-          e.preventDefault();
-          deferredPrompt = e;
-          installBtn.style.display = 'block';
-        });
-
-        installBtn.addEventListener('click', async () => {
-          installBtn.style.display = 'none';
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`Scelta utente: ${outcome}`);
-            deferredPrompt = null;
-          }
-        });
-
-        // 🔹 Se l’app è già installata, nascondi il bottone
-        window.addEventListener('appinstalled', () => {
-          console.log('📱 Assenza Facile installata con successo!');
-          installBtn.style.display = 'none';
-        });
-      </script>
-
 </body>
 </html>
