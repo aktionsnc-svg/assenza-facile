@@ -3,41 +3,46 @@
 // =====================
 const express = require("express");
 const path = require("path");
-const Database = require("@replit/database");
+const ReplitDB = require("@replit/database");
+const db = new ReplitDB(process.env.REPLIT_DB_URL);
 
 const app = express();
-const db = new Database(process.env.REPLIT_DB_URL);
 
-// =====================
-// MIDDLEWARE
-// =====================
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// ✅ Serve file statici dalla cartella /public
+app.use(express.static(path.join(__dirname, "public")));
 
-// =====================
-// APP CONFIG
-// =====================
-app.set("view engine", "ejs");
-app.engine("ejs", require("ejs").__express);
-app.set("views", path.join(__dirname, "views"));
-app.use(express.static("public"));
-app.use('/public', express.static(path.join(__dirname, 'public')));
+// ✅ Serve il manifest.json e il service worker esplicitamente
+app.get("/manifest.json", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "manifest.json"));
+});
+app.get("/service-worker.js", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "service-worker.js"));
+});
+
+// 🔍 Route di test per diagnosi
+app.get("/test-paths", (req, res) => {
+  const fs = require("fs");
+  res.json({
+    publicExists: fs.existsSync(path.join(__dirname, "public")),
+    manifestExists: fs.existsSync(path.join(__dirname, "public", "manifest.json")),
+    swExists: fs.existsSync(path.join(__dirname, "public", "service-worker.js")),
+    publicPath: path.join(__dirname, "public"),
+    files: fs.readdirSync(path.join(__dirname, "public"))
+  });
+});
 
 // =====================
 // ADMIN PREDEFINITO
 // =====================
-const adminUser = {
-  email: "aktionsnc@gmail.com",
-  password: "Aktion2020!!!"
-};
+const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
 
 // =====================
-// DATABASE CLOUD (Replit DB)
+// FUNZIONI DB
 // =====================
 async function readDB() {
   try {
     const response = await db.get("appdata");
-    const data = response && response.value ? response.value : response;
+    const data = response?.value || response;
     return data || { users: [], absences: [], categories: [] };
   } catch (err) {
     console.error("❌ Errore lettura DB remoto:", err);
@@ -55,10 +60,13 @@ async function writeDB(data) {
 }
 
 // =====================
-// HELPER FUNCTIONS
+// FUNZIONI DI SUPPORTO
 // =====================
 const normEmail = (e) => String(e || "").trim().toLowerCase();
 const normPass = (p) => String(p || "").trim();
+const DAY_INDEX_CANON = {
+  domenica: 0, lunedi: 1, martedi: 2, mercoledi: 3, giovedi: 4, venerdi: 5, sabato: 6
+};
 
 function normalizeDayName(s) {
   return String(s || "")
@@ -68,29 +76,9 @@ function normalizeDayName(s) {
     .replace(/[\u0300-\u036f]/g, "");
 }
 
-const DAY_INDEX_CANON = {
-  domenica: 0,
-  lunedi: 1,
-  martedi: 2,
-  mercoledi: 3,
-  giovedi: 4,
-  venerdi: 5,
-  sabato: 6
-};
-
 function toISODate(d) {
   const pad = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function formatDateShort(isoString) {
-  const giorni = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
-  const mesi = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
-  const d = new Date(isoString);
-  const giorno = giorni[d.getDay()];
-  const mese = mesi[d.getMonth()];
-  const giornoNum = String(d.getDate()).padStart(2, "0");
-  return `${giorno} ${giornoNum} ${mese}`;
 }
 
 function computeWindowDatesForCategory(daysNames) {
@@ -98,11 +86,9 @@ function computeWindowDatesForCategory(daysNames) {
     .map(normalizeDayName)
     .map((n) => DAY_INDEX_CANON[n])
     .filter((x) => typeof x === "number");
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const dates = [];
-
   for (let i = 0; i < 14; i++) {
     const d = new Date(today);
     d.setDate(d.getDate() + i);
@@ -111,27 +97,26 @@ function computeWindowDatesForCategory(daysNames) {
   return dates;
 }
 
-// =====================
-// ROUTES
-// =====================
+function formatDateShort(isoString) {
+  const giorni = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
+  const mesi = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
+  const d = new Date(isoString);
+  return `${giorni[d.getDay()]} ${String(d.getDate()).padStart(2, "0")} ${mesi[d.getMonth()]}`;
+}
 
-// Home di test
-app.get("/", (req, res) => {
-  res.redirect("/login");
-});
+// =====================
+// ROTTE APP
+// =====================
+app.get("/", (req, res) => res.redirect("/login"));
 
-// ----- LOGIN -----
-app.get("/login", (_req, res) => {
-  res.render("login", { error: null });
-});
+app.get("/login", (_req, res) => res.render("login", { error: null }));
 
 app.post("/login", async (req, res) => {
   const email = normEmail(req.body.email);
   const password = normPass(req.body.password);
 
-  if (email === normEmail(adminUser.email) && password === normPass(adminUser.password)) {
+  if (email === normEmail(adminUser.email) && password === normPass(adminUser.password))
     return res.redirect("/admin");
-  }
 
   const data = await readDB();
   const user = (data.users || []).find(
@@ -142,7 +127,7 @@ app.post("/login", async (req, res) => {
   res.render("login", { error: "Email o password errate" });
 });
 
-// ----- REGISTRAZIONE -----
+// --- REGISTRAZIONE ---
 app.get("/register", async (_req, res) => {
   const data = await readDB();
   const categories = [...(data.categories || [])].sort((a, b) =>
@@ -152,65 +137,47 @@ app.get("/register", async (_req, res) => {
 });
 
 app.post("/register", async (req, res) => {
-  const name = req.body.name?.trim();
-  const email = normEmail(req.body.email);
-  const password = normPass(req.body.password);
-  const childName = req.body.childName?.trim();
-  const category = req.body.category?.trim();
-
+  const { name, email, password, childName, category } = req.body;
   const data = await readDB();
-
-  if ((data.users || []).some((u) => normEmail(u.email) === email)) {
+  if ((data.users || []).some((u) => normEmail(u.email) === normEmail(email)))
     return res.render("register", { error: "Utente già registrato!", categories: data.categories });
-  }
-
   data.users.push({ name, email, password, childName, category });
   await writeDB(data);
   res.redirect("/login");
 });
 
-// ----- DASHBOARD GENITORE -----
+// --- GENITORE ---
 app.get("/parent/:email", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const data = await readDB();
-
-  const user = data.users.find(u => normEmail(u.email) === email);
+  const user = data.users.find((u) => normEmail(u.email) === email);
   if (!user) return res.redirect("/login");
 
   const absences = Array.isArray(data.absences) ? data.absences : [];
-  const cat = data.categories.find(c => c.name === user.category);
-
-  const dates = computeWindowDatesForCategory(cat ? (cat.days || []) : []);
-  const upcoming = dates.map(d => ({
+  const cat = data.categories.find((c) => c.name === user.category);
+  const dates = computeWindowDatesForCategory(cat ? cat.days : []);
+  const upcoming = dates.map((d) => ({
     date: d,
-    absent: absences.some(a => a.email === email && a.date === d)
+    absent: absences.some((a) => a.email === email && a.date === d)
   }));
 
   res.render("parent_dashboard", { user, absences, upcoming, formatDateShort });
 });
 
-// ----- TOGGLE ASSENZA -----
 app.post("/parent/:email/toggle-absence", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const date = String(req.body.date || "").trim();
-
   const data = await readDB();
   let absences = Array.isArray(data.absences) ? data.absences : [];
-
-  const exists = absences.find(a => a.email === email && a.date === date);
-
-  if (exists) {
-    absences = absences.filter(a => !(a.email === email && a.date === date));
-  } else {
-    absences.push({ email, date });
-  }
-
+  const exists = absences.find((a) => a.email === email && a.date === date);
+  if (exists) absences = absences.filter((a) => !(a.email === email && a.date === date));
+  else absences.push({ email, date });
   data.absences = absences;
   await writeDB(data);
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
 
-// ----- ADMIN DASHBOARD -----
+// --- ADMIN ---
 app.get("/admin", async (_req, res) => {
   const data = await readDB();
   const absences = Array.isArray(data.absences) ? data.absences : [];
@@ -218,8 +185,8 @@ app.get("/admin", async (_req, res) => {
   const categories = Array.isArray(data.categories) ? data.categories : [];
 
   const sortedAbsences = absences
-    .map(a => {
-      const u = users.find(u => normEmail(u.email) === normEmail(a.email));
+    .map((a) => {
+      const u = users.find((u) => normEmail(u.email) === normEmail(a.email));
       return {
         ...a,
         category: u?.category || "-",
@@ -247,33 +214,27 @@ app.get("/admin", async (_req, res) => {
   });
 });
 
-// ----- CREA NUOVA CATEGORIA -----
 app.post("/admin/category", async (req, res) => {
   const data = await readDB();
   let { name, days } = req.body;
-
   if (!name) return res.redirect("/admin");
   if (!days) days = [];
   if (!Array.isArray(days)) days = [days];
-
-  days = days.map(d => d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
-
+  days = days.map((d) => d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   const categories = Array.isArray(data.categories) ? data.categories : [];
-
-  const existing = categories.find(c => c.name === name);
+  const existing = categories.find((c) => c.name === name);
   if (existing) existing.days = days;
   else categories.push({ name, days });
-
   data.categories = categories;
   await writeDB(data);
   res.redirect("/admin");
 });
 
 // =====================
-// SERVER
+// SERVER START
 // =====================
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
-  console.log(`🌐 App pronta!`);
+  console.log("🌐 App pronta!");
 });
