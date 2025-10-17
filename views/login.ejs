@@ -160,6 +160,12 @@
     let deferredPrompt;
     const installBtn = document.getElementById("installBtn");
 
+    // Mostra SEMPRE il bottone (utile per test e fallback)
+    window.addEventListener("load", () => {
+      installBtn.style.display = "block";
+    });
+
+    // Chrome lancia questo evento quando la PWA è installabile
     window.addEventListener("beforeinstallprompt", (e) => {
       console.log("💡 Evento beforeinstallprompt catturato!");
       e.preventDefault();
@@ -167,6 +173,7 @@
       installBtn.style.display = "block";
     });
 
+    // Clic sul bottone → mostra il popup nativo se disponibile
     installBtn.addEventListener("click", async () => {
       if (deferredPrompt) {
         deferredPrompt.prompt();
@@ -175,10 +182,11 @@
         deferredPrompt = null;
         installBtn.style.display = "none";
       } else {
-        alert("Per installare l'app, apri il menu del browser e scegli 'Aggiungi alla schermata Home'.");
+        alert("Se non compare il popup, apri il menu del browser e scegli 'Aggiungi a schermata Home'.");
       }
     });
 
+    // Quando l'app viene installata
     window.addEventListener("appinstalled", () => {
       console.log("📱 Assenza Facile installata con successo!");
       installBtn.style.display = "none";
