@@ -1,18 +1,19 @@
 {
   "name": "Assenza Facile",
   "short_name": "AssenzaFacile",
-  "start_url": "/login",
+  "description": "Gestione assenze semplificata per genitori e amministratori.",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#f0fdf4",
   "theme_color": "#16a34a",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/icona-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/icona-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
