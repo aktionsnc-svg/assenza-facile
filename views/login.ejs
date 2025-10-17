@@ -160,34 +160,25 @@
     let deferredPrompt;
     const installBtn = document.getElementById("installBtn");
 
-    // Mostra sempre il bottone se l'app non è installata
-    window.addEventListener("load", () => {
-      if (!window.matchMedia('(display-mode: standalone)').matches) {
-        installBtn.style.display = "block";
-      }
-    });
-
-    // Mostra bottone anche quando Chrome emette l'evento nativo
     window.addEventListener("beforeinstallprompt", (e) => {
+      console.log("💡 Evento beforeinstallprompt catturato!");
       e.preventDefault();
       deferredPrompt = e;
       installBtn.style.display = "block";
     });
 
-    // Azione quando l'utente clicca su "Installa"
     installBtn.addEventListener("click", async () => {
-      installBtn.style.display = "none";
       if (deferredPrompt) {
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         console.log(`Scelta utente: ${outcome}`);
         deferredPrompt = null;
+        installBtn.style.display = "none";
       } else {
-        alert("Per installare: apri il menu del browser e scegli 'Aggiungi a schermata Home'.");
+        alert("Per installare l'app, apri il menu del browser e scegli 'Aggiungi alla schermata Home'.");
       }
     });
 
-    // Quando l'app è installata
     window.addEventListener("appinstalled", () => {
       console.log("📱 Assenza Facile installata con successo!");
       installBtn.style.display = "none";
