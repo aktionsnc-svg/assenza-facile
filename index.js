@@ -3,9 +3,31 @@
 // =====================
 const express = require("express");
 const path = require("path");
-// --- MongoDB Connection (persistent cloud DB) ---
 const { MongoClient } = require("mongodb");
 
+const app = express();
+
+// =====================
+// CONFIGURAZIONE EXPRESS
+// =====================
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.set("view engine", "ejs");
+app.engine("ejs", require("ejs").__express);
+app.set("views", path.join(__dirname, "views"));
+app.use(express.static(path.join(__dirname, "public")));
+
+// Serve manifest e service worker
+app.get("/manifest.json", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "manifest.json"))
+);
+app.get("/service-worker.js", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "service-worker.js"))
+);
+
+// =====================
+// CONNESSIONE MONGODB
+// =====================
 const client = new MongoClient(process.env.MONGO_URI);
 let collection;
 
@@ -15,6 +37,7 @@ async function connectMongo() {
     const db = client.db("assenza_facile");
     collection = db.collection("appdata");
     console.log("✅ Connesso a MongoDB Atlas");
+    global.serverReady = true;
   } catch (err) {
     console.error("❌ Errore connessione MongoDB:", err);
   }
@@ -45,54 +68,10 @@ async function writeDB(data) {
   }
 }
 
-
-const app = express();
-
-// =====================
-// CONFIG
-// =====================
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.set("view engine", "ejs");
-app.engine("ejs", require("ejs").__express);
-app.set("views", path.join(__dirname, "views"));
-app.use(express.static(path.join(__dirname, "public")));
-
-// Serve manifest e service worker
-app.get("/manifest.json", (req, res) =>
-  res.sendFile(path.join(__dirname, "public", "manifest.json"))
-);
-app.get("/service-worker.js", (req, res) =>
-  res.sendFile(path.join(__dirname, "public", "service-worker.js"))
-);
-
 // =====================
 // ADMIN PREDEFINITO
 // =====================
 const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
-
-// =====================
-// FUNZIONI DB
-// =====================
-async function readDB() {
-  try {
-    const response = await db.get("appdata");
-    const data = response?.value || response;
-    return data || { users: [], absences: [], categories: [] };
-  } catch (err) {
-    console.error("❌ Errore lettura DB remoto:", err);
-    return { users: [], absences: [], categories: [] };
-  }
-}
-
-async function writeDB(data) {
-  try {
-    await db.set("appdata", data);
-    console.log("💾 Dati salvati nel Replit DB cloud");
-  } catch (err) {
-    console.error("❌ Errore scrittura DB remoto:", err);
-  }
-}
 
 // =====================
 // FUNZIONI DI SUPPORTO
@@ -143,7 +122,7 @@ function formatDateShort(isoString) {
 // ROTTE APP
 // =====================
 
-// Pagina di caricamento o redirect (Render wake-up)
+// Pagina di caricamento (Render wake-up)
 app.get("/", (req, res) => {
   if (!global.serverReady) {
     res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
@@ -278,15 +257,6 @@ app.post("/admin/category", async (req, res) => {
   await writeDB(data);
   res.redirect("/admin");
 });
-// --- TEST: verifica contenuto del DB remoto ---
-app.get("/test-db", async (req, res) => {
-  try {
-    const data = await db.get("appdata");
-    res.json(data);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // =====================
 // SERVER START
@@ -295,5 +265,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
   console.log("🌐 App pronta!");
-  global.serverReady = true;
 });
