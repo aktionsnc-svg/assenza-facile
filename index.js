@@ -238,6 +238,15 @@ app.post("/admin/category", async (req, res) => {
   await writeDB(data);
   res.redirect("/admin");
 });
+// --- TEST: verifica contenuto del DB remoto ---
+app.get("/test-db", async (req, res) => {
+  try {
+    const data = await db.get("appdata");
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // =====================
 // SERVER START
