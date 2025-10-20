@@ -25,15 +25,21 @@ app.get("/service-worker.js", (req, res) =>
   res.sendFile(path.join(__dirname, "public", "service-worker.js"))
 );
 
-// =====================
-// CONNESSIONE MONGODB
-// =====================
+// --- MongoDB Connection (persistent cloud DB) ---
+const { MongoClient, ServerApiVersion } = require("mongodb");
+
+// Connessione sicura a MongoDB Atlas
 const client = new MongoClient(process.env.MONGO_URI, {
   ssl: true,
-  tlsAllowInvalidCertificates: true,
-  tlsInsecure: true,
+  serverApi: {
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+  },
   serverSelectionTimeoutMS: 10000,
 });
+
+let collection;
 
 async function connectMongo() {
   try {
@@ -41,13 +47,13 @@ async function connectMongo() {
     const db = client.db("assenza_facile");
     collection = db.collection("appdata");
     console.log("✅ Connesso a MongoDB Atlas");
-    global.serverReady = true;
   } catch (err) {
     console.error("❌ Errore connessione MongoDB:", err);
   }
 }
 
 connectMongo();
+
 
 async function readDB() {
   try {
