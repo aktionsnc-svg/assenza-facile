@@ -3,8 +3,48 @@
 // =====================
 const express = require("express");
 const path = require("path");
-const ReplitDB = require("@replit/database");
-const db = new ReplitDB(process.env.REPLIT_DB_URL);
+// --- MongoDB Connection (persistent cloud DB) ---
+const { MongoClient } = require("mongodb");
+
+const client = new MongoClient(process.env.MONGO_URI);
+let collection;
+
+async function connectMongo() {
+  try {
+    await client.connect();
+    const db = client.db("assenza_facile");
+    collection = db.collection("appdata");
+    console.log("✅ Connesso a MongoDB Atlas");
+  } catch (err) {
+    console.error("❌ Errore connessione MongoDB:", err);
+  }
+}
+
+connectMongo();
+
+async function readDB() {
+  try {
+    const doc = await collection.findOne({ _id: "data" });
+    return doc ? doc.data : { users: [], absences: [], categories: [] };
+  } catch (err) {
+    console.error("❌ Errore lettura DB Mongo:", err);
+    return { users: [], absences: [], categories: [] };
+  }
+}
+
+async function writeDB(data) {
+  try {
+    await collection.updateOne(
+      { _id: "data" },
+      { $set: { data } },
+      { upsert: true }
+    );
+    console.log("💾 Dati salvati su MongoDB Atlas");
+  } catch (err) {
+    console.error("❌ Errore scrittura DB Mongo:", err);
+  }
+}
+
 
 const app = express();
 
