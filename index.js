@@ -28,8 +28,12 @@ app.get("/service-worker.js", (req, res) =>
 // =====================
 // CONNESSIONE MONGODB
 // =====================
-const client = new MongoClient(process.env.MONGO_URI);
-let collection;
+const client = new MongoClient(process.env.MONGO_URI, {
+  ssl: true,
+  tlsAllowInvalidCertificates: true,
+  tlsInsecure: true,
+  serverSelectionTimeoutMS: 10000,
+});
 
 async function connectMongo() {
   try {
