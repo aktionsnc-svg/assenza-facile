@@ -3,40 +3,19 @@
 // =====================
 const express = require("express");
 const path = require("path");
-const { MongoClient } = require("mongodb");
-
-const app = express();
-
-// =====================
-// CONFIGURAZIONE EXPRESS
-// =====================
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-app.set("view engine", "ejs");
-app.engine("ejs", require("ejs").__express);
-app.set("views", path.join(__dirname, "views"));
-app.use(express.static(path.join(__dirname, "public")));
-
-// Serve manifest e service worker
-app.get("/manifest.json", (req, res) =>
-  res.sendFile(path.join(__dirname, "public", "manifest.json"))
-);
-app.get("/service-worker.js", (req, res) =>
-  res.sendFile(path.join(__dirname, "public", "service-worker.js"))
-);
-
-// --- MongoDB Connection (persistent cloud DB) ---
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
-// Connessione sicura a MongoDB Atlas
+// =====================
+// MONGODB CONNECTION (Render + Atlas compatibile)
+// =====================
 const client = new MongoClient(process.env.MONGO_URI, {
-  ssl: true,
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
     deprecationErrors: true,
   },
-  serverSelectionTimeoutMS: 10000,
+  connectTimeoutMS: 20000,
+  socketTimeoutMS: 20000,
 });
 
 let collection;
@@ -54,7 +33,9 @@ async function connectMongo() {
 
 connectMongo();
 
-
+// =====================
+// FUNZIONI LETTURA/SCRITTURA DB
+// =====================
 async function readDB() {
   try {
     const doc = await collection.findOne({ _id: "data" });
@@ -79,6 +60,25 @@ async function writeDB(data) {
 }
 
 // =====================
+// EXPRESS APP
+// =====================
+const app = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.set("view engine", "ejs");
+app.engine("ejs", require("ejs").__express);
+app.set("views", path.join(__dirname, "views"));
+app.use(express.static(path.join(__dirname, "public")));
+
+// Serve manifest e service worker
+app.get("/manifest.json", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "manifest.json"))
+);
+app.get("/service-worker.js", (req, res) =>
+  res.sendFile(path.join(__dirname, "public", "service-worker.js"))
+);
+
+// =====================
 // ADMIN PREDEFINITO
 // =====================
 const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
@@ -88,8 +88,15 @@ const adminUser = { email: "aktionsnc@gmail.com", password: "Aktion2020!!!" };
 // =====================
 const normEmail = (e) => String(e || "").trim().toLowerCase();
 const normPass = (p) => String(p || "").trim();
+
 const DAY_INDEX_CANON = {
-  domenica: 0, lunedi: 1, martedi: 2, mercoledi: 3, giovedi: 4, venerdi: 5, sabato: 6
+  domenica: 0,
+  lunedi: 1,
+  martedi: 2,
+  mercoledi: 3,
+  giovedi: 4,
+  venerdi: 5,
+  sabato: 6,
 };
 
 function normalizeDayName(s) {
@@ -123,16 +130,31 @@ function computeWindowDatesForCategory(daysNames) {
 
 function formatDateShort(isoString) {
   const giorni = ["DOM", "LUN", "MAR", "MER", "GIO", "VEN", "SAB"];
-  const mesi = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"];
+  const mesi = [
+    "GEN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAG",
+    "GIU",
+    "LUG",
+    "AGO",
+    "SET",
+    "OTT",
+    "NOV",
+    "DIC",
+  ];
   const d = new Date(isoString);
-  return `${giorni[d.getDay()]} ${String(d.getDate()).padStart(2, "0")} ${mesi[d.getMonth()]}`;
+  return `${giorni[d.getDay()]} ${String(d.getDate()).padStart(2, "0")} ${
+    mesi[d.getMonth()]
+  }`;
 }
 
 // =====================
 // ROTTE APP
 // =====================
 
-// Pagina di caricamento (Render wake-up)
+// Pagina di caricamento o redirect
 app.get("/", (req, res) => {
   if (!global.serverReady) {
     res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
@@ -149,7 +171,10 @@ app.post("/login", async (req, res) => {
     const email = normEmail(req.body.email);
     const password = normPass(req.body.password);
 
-    if (email === normEmail(adminUser.email) && password === normPass(adminUser.password))
+    if (
+      email === normEmail(adminUser.email) &&
+      password === normPass(adminUser.password)
+    )
       return res.redirect("/admin");
 
     const data = await readDB();
@@ -178,7 +203,10 @@ app.post("/register", async (req, res) => {
   const { name, email, password, childName, category } = req.body;
   const data = await readDB();
   if ((data.users || []).some((u) => normEmail(u.email) === normEmail(email)))
-    return res.render("register", { error: "Utente già registrato!", categories: data.categories });
+    return res.render("register", {
+      error: "Utente già registrato!",
+      categories: data.categories,
+    });
   data.users.push({ name, email, password, childName, category });
   await writeDB(data);
   res.redirect("/login");
@@ -196,10 +224,15 @@ app.get("/parent/:email", async (req, res) => {
   const dates = computeWindowDatesForCategory(cat ? cat.days : []);
   const upcoming = dates.map((d) => ({
     date: d,
-    absent: absences.some((a) => a.email === email && a.date === d)
+    absent: absences.some((a) => a.email === email && a.date === d),
   }));
 
-  res.render("parent_dashboard", { user, absences, upcoming, formatDateShort });
+  res.render("parent_dashboard", {
+    user,
+    absences,
+    upcoming,
+    formatDateShort,
+  });
 });
 
 app.post("/parent/:email/toggle-absence", async (req, res) => {
@@ -208,7 +241,10 @@ app.post("/parent/:email/toggle-absence", async (req, res) => {
   const data = await readDB();
   let absences = Array.isArray(data.absences) ? data.absences : [];
   const exists = absences.find((a) => a.email === email && a.date === date);
-  if (exists) absences = absences.filter((a) => !(a.email === email && a.date === date));
+  if (exists)
+    absences = absences.filter(
+      (a) => !(a.email === email && a.date === date)
+    );
   else absences.push({ email, date });
   data.absences = absences;
   await writeDB(data);
@@ -228,12 +264,13 @@ app.get("/admin", async (_req, res) => {
       return {
         ...a,
         category: u?.category || "-",
-        childName: u?.childName || "-"
+        childName: u?.childName || "-",
       };
     })
     .sort((a, b) => {
       if (a.date !== b.date) return a.date.localeCompare(b.date);
-      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      if (a.category !== b.category)
+        return a.category.localeCompare(b.category);
       return a.childName.localeCompare(b.childName);
     });
 
@@ -248,7 +285,7 @@ app.get("/admin", async (_req, res) => {
     users,
     categories: [...categories].sort((a, b) => a.name.localeCompare(b.name)),
     calendarByCategory,
-    formatDateShort
+    formatDateShort,
   });
 });
 
@@ -258,7 +295,9 @@ app.post("/admin/category", async (req, res) => {
   if (!name) return res.redirect("/admin");
   if (!days) days = [];
   if (!Array.isArray(days)) days = [days];
-  days = days.map((d) => d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+  days = days.map((d) =>
+    d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  );
   const categories = Array.isArray(data.categories) ? data.categories : [];
   const existing = categories.find((c) => c.name === name);
   if (existing) existing.days = days;
@@ -268,6 +307,16 @@ app.post("/admin/category", async (req, res) => {
   res.redirect("/admin");
 });
 
+// ----- TEST DB -----
+app.get("/test-db", async (req, res) => {
+  try {
+    const data = await readDB();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // =====================
 // SERVER START
 // =====================
@@ -275,4 +324,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Server avviato su porta ${PORT}`);
   console.log("🌐 App pronta!");
+  global.serverReady = true;
 });
