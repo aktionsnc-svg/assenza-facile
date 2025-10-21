@@ -321,8 +321,31 @@ app.get("/test-db", async (req, res) => {
 // SERVER START
 // =====================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ Server avviato su porta ${PORT}`);
-  console.log("🌐 App pronta!");
-  global.serverReady = true;
+
+// Pagina "loading" immediata (sempre disponibile)
+app.get("/", (req, res) => {
+  if (!global.serverReady) {
+    res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
+  } else {
+    res.redirect("/login");
+  }
 });
+
+async function startServer() {
+  console.log("🚀 Avvio server...");
+
+  // Avvia il listener PRIMA del DB (così la pagina loading è già servita)
+  const server = app.listen(PORT, () =>
+    console.log(`⚙️ Server Express in ascolto sulla porta ${PORT}`)
+  );
+
+  try {
+    await connectMongo(); // connessione DB
+    global.serverReady = true;
+    console.log("🌐 App pronta e DB connesso!");
+  } catch (err) {
+    console.error("❌ Errore avvio:", err);
+  }
+}
+
+startServer();
