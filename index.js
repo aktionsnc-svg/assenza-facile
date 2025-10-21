@@ -6,6 +6,14 @@ const path = require("path");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 
 // =====================
+// CHECK VARIABILI AMBIENTE
+// =====================
+if (!process.env.MONGO_URI) {
+  console.error("❌ ERRORE: variabile MONGO_URI non trovata!");
+  process.exit(1); // Uscita immediata se la variabile manca
+}
+
+// =====================
 // MONGODB CONNECTION (Render + Atlas compatibile)
 // =====================
 const client = new MongoClient(process.env.MONGO_URI, {
@@ -14,13 +22,14 @@ const client = new MongoClient(process.env.MONGO_URI, {
     strict: true,
     deprecationErrors: true,
   },
-  connectTimeoutMS: 20000,
-  socketTimeoutMS: 20000,
+  connectTimeoutMS: 20000, // Timeout della connessione
+  socketTimeoutMS: 20000, // Timeout per il socket
 });
 
 let collection;
 
 async function connectMongo() {
+  console.log("🔗 Connessione a MongoDB...");
   try {
     await client.connect();
     const db = client.db("assenza_facile");
@@ -28,10 +37,9 @@ async function connectMongo() {
     console.log("✅ Connesso a MongoDB Atlas");
   } catch (err) {
     console.error("❌ Errore connessione MongoDB:", err);
+    throw err; // Rilancia l'errore per fermare il server
   }
 }
-
-connectMongo();
 
 // =====================
 // FUNZIONI LETTURA/SCRITTURA DB
@@ -154,7 +162,7 @@ function formatDateShort(isoString) {
 // ROTTE APP
 // =====================
 
-// Pagina di caricamento o redirect
+// Pagina iniziale con loading
 app.get("/", (req, res) => {
   if (!global.serverReady) {
     res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
@@ -318,31 +326,23 @@ app.get("/test-db", async (req, res) => {
 });
 
 // =====================
-// SERVER START
+// SERVER START (con schermata loading)
 // =====================
 const PORT = process.env.PORT || 3000;
-
-// Pagina "loading" immediata (sempre disponibile)
-app.get("/", (req, res) => {
-  if (!global.serverReady) {
-    res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
-  } else {
-    res.redirect("/login");
-  }
-});
 
 async function startServer() {
   console.log("🚀 Avvio server...");
 
-  // Avvia il listener PRIMA del DB (così la pagina loading è già servita)
-  const server = app.listen(PORT, () =>
-    console.log(`⚙️ Server Express in ascolto sulla porta ${PORT}`)
-  );
+  // 1️⃣ Avvia Express subito — così serve la pagina di caricamento
+  const server = app.listen(PORT, () => {
+    console.log(`⚙️ Server Express in ascolto sulla porta ${PORT}`);
+  });
 
+  // 2️⃣ Poi connette MongoDB
   try {
-    await connectMongo(); // connessione DB
+    await connectMongo();
     global.serverReady = true;
-    console.log("🌐 App pronta e DB connesso!");
+    console.log("🌐 App pronta!");
   } catch (err) {
     console.error("❌ Errore avvio:", err);
   }
