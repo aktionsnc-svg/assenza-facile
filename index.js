@@ -162,14 +162,58 @@ function formatDateShort(isoString) {
 // ROTTE APP
 // =====================
 
-// Pagina iniziale con loading
+// Pagina iniziale con loading inline (niente schermo nero)
 app.get("/", (req, res) => {
   if (!global.serverReady) {
-    res.sendFile(path.join(__dirname, "public", "loading", "index.html"));
+    res.send(`
+      <!DOCTYPE html>
+      <html lang="it">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Avvio in corso...</title>
+        <style>
+          body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #f8fafc;
+            color: #333;
+            font-family: "Segoe UI", system-ui, sans-serif;
+            text-align: center;
+          }
+          .spinner {
+            border: 5px solid #ddd;
+            border-top: 5px solid #007bff;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+          }
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+          h2 {
+            font-weight: 500;
+            font-size: 1.3rem;
+            margin-top: 20px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="spinner"></div>
+        <h2>🚀 L'app si sta avviando... Attendere qualche secondo...</h2>
+      </body>
+      </html>
+    `);
   } else {
     res.redirect("/login");
   }
 });
+
 
 // ----- LOGIN -----
 app.get("/login", (_req, res) => res.render("login", { error: null }));

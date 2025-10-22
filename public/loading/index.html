@@ -31,6 +31,7 @@
     h2 {
       font-weight: 500;
       font-size: 1.3rem;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -39,12 +40,3 @@
   <h2>🚀 L'app si sta avviando... Attendere qualche secondo...</h2>
 </body>
 </html>
-<script>
-setInterval(() => {
-  fetch("/test-db", { cache: "no-store" })
-    .then(res => {
-      if (res.ok) window.location.href = "/login";
-    })
-    .catch(() => {});
-}, 2000);
-</script>
