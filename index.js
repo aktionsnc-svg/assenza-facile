@@ -4,6 +4,10 @@
 const express = require("express");
 const path = require("path");
 const { MongoClient, ServerApiVersion } = require("mongodb");
+// Endpoint leggero per UptimeRobot (risponde sempre)
+app.get("/ping", (_req, res) => {
+  res.status(200).send("pong");
+});
 
 // =====================
 // CHECK VARIABILI AMBIENTE
