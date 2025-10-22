@@ -4,17 +4,14 @@
 const express = require("express");
 const path = require("path");
 const { MongoClient, ServerApiVersion } = require("mongodb");
-// Endpoint leggero per UptimeRobot (risponde sempre)
-app.get("/ping", (_req, res) => {
-  res.status(200).send("pong");
-});
 
 // =====================
 // CHECK VARIABILI AMBIENTE
 // =====================
 if (!process.env.MONGO_URI) {
   console.error("❌ ERRORE: variabile MONGO_URI non trovata!");
-  process.exit(1); // Uscita immediata se la variabile manca
+  console.error("ℹ️ Aggiungila nei 'Environment Variables' di Render.");
+  process.exit(1);
 }
 
 // =====================
@@ -26,8 +23,8 @@ const client = new MongoClient(process.env.MONGO_URI, {
     strict: true,
     deprecationErrors: true,
   },
-  connectTimeoutMS: 20000, // Timeout della connessione
-  socketTimeoutMS: 20000, // Timeout per il socket
+  connectTimeoutMS: 20000,
+  socketTimeoutMS: 20000,
 });
 
 let collection;
@@ -41,33 +38,7 @@ async function connectMongo() {
     console.log("✅ Connesso a MongoDB Atlas");
   } catch (err) {
     console.error("❌ Errore connessione MongoDB:", err);
-    throw err; // Rilancia l'errore per fermare il server
-  }
-}
-
-// =====================
-// FUNZIONI LETTURA/SCRITTURA DB
-// =====================
-async function readDB() {
-  try {
-    const doc = await collection.findOne({ _id: "data" });
-    return doc ? doc.data : { users: [], absences: [], categories: [] };
-  } catch (err) {
-    console.error("❌ Errore lettura DB Mongo:", err);
-    return { users: [], absences: [], categories: [] };
-  }
-}
-
-async function writeDB(data) {
-  try {
-    await collection.updateOne(
-      { _id: "data" },
-      { $set: { data } },
-      { upsert: true }
-    );
-    console.log("💾 Dati salvati su MongoDB Atlas");
-  } catch (err) {
-    console.error("❌ Errore scrittura DB Mongo:", err);
+    throw err;
   }
 }
 
@@ -75,6 +46,12 @@ async function writeDB(data) {
 // EXPRESS APP
 // =====================
 const app = express();
+
+// Endpoint ping per UptimeRobot
+app.get("/ping", (_req, res) => {
+  res.status(200).send("pong");
+});
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.set("view engine", "ejs");
@@ -163,10 +140,36 @@ function formatDateShort(isoString) {
 }
 
 // =====================
+// FUNZIONI DB
+// =====================
+async function readDB() {
+  try {
+    const doc = await collection.findOne({ _id: "data" });
+    return doc ? doc.data : { users: [], absences: [], categories: [] };
+  } catch (err) {
+    console.error("❌ Errore lettura DB Mongo:", err);
+    return { users: [], absences: [], categories: [] };
+  }
+}
+
+async function writeDB(data) {
+  try {
+    await collection.updateOne(
+      { _id: "data" },
+      { $set: { data } },
+      { upsert: true }
+    );
+    console.log("💾 Dati salvati su MongoDB Atlas");
+  } catch (err) {
+    console.error("❌ Errore scrittura DB Mongo:", err);
+  }
+}
+
+// =====================
 // ROTTE APP
 // =====================
 
-// Pagina iniziale con loading inline (niente schermo nero)
+// Pagina iniziale con loading inline
 app.get("/", (req, res) => {
   if (!global.serverReady) {
     res.send(`
@@ -217,7 +220,6 @@ app.get("/", (req, res) => {
     res.redirect("/login");
   }
 });
-
 
 // ----- LOGIN -----
 app.get("/login", (_req, res) => res.render("login", { error: null }));
@@ -374,19 +376,17 @@ app.get("/test-db", async (req, res) => {
 });
 
 // =====================
-// SERVER START (con schermata loading)
+// SERVER START
 // =====================
 const PORT = process.env.PORT || 3000;
 
 async function startServer() {
   console.log("🚀 Avvio server...");
 
-  // 1️⃣ Avvia Express subito — così serve la pagina di caricamento
   const server = app.listen(PORT, () => {
     console.log(`⚙️ Server Express in ascolto sulla porta ${PORT}`);
   });
 
-  // 2️⃣ Poi connette MongoDB
   try {
     await connectMongo();
     global.serverReady = true;
