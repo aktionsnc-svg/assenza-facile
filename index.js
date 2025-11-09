@@ -274,40 +274,64 @@ app.post("/register", async (req, res) => {
 app.get("/parent/:email", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const data = await readDB();
-  const user = data.users.find((u) => normEmail(u.email) === email);
+  const user = data.users.find(u => normEmail(u.email) === email);
   if (!user) return res.redirect("/login");
 
-  const absences = Array.isArray(data.absences) ? data.absences : [];
-  const cat = data.categories.find((c) => c.name === user.category);
+  // 🔒 Filtra solo le assenze di questo utente, indipendentemente dal nome del campo
+  const allAbsences = Array.isArray(data.absences) ? data.absences : [];
+  const myAbsences = allAbsences.filter(a => {
+    const mail = normEmail(a.email || a.user || a.mail || "");
+    return mail === email;
+  });
+
+  // 📅 Calcola le date della categoria del figlio
+  const cat = data.categories.find(c => c.name === user.category);
   const dates = computeWindowDatesForCategory(cat ? cat.days : []);
-  const upcoming = dates.map((d) => ({
+
+  // 🎯 Costruisce il calendario con flag "assente"
+  const upcoming = dates.map(d => ({
     date: d,
-    absent: absences.some((a) => a.email === email && a.date === d),
+    absent: myAbsences.some(a => a.date === d),
   }));
 
   res.render("parent_dashboard", {
     user,
-    absences,
+    absences: myAbsences,
     upcoming,
     formatDateShort,
   });
 });
 
+// ----- TOGGLE ASSENZA -----
 app.post("/parent/:email/toggle-absence", async (req, res) => {
   const email = normEmail(decodeURIComponent(req.params.email));
   const date = String(req.body.date || "").trim();
   const data = await readDB();
+
   let absences = Array.isArray(data.absences) ? data.absences : [];
-  const exists = absences.find((a) => a.email === email && a.date === date);
-  if (exists)
-    absences = absences.filter(
-      (a) => !(a.email === email && a.date === date)
-    );
-  else absences.push({ email, date });
+
+  // 🔁 Normalizza tutti i record esistenti per evitare inconsistenze
+  absences = absences.map(a => ({
+    email: normEmail(a.email || a.user || a.mail || ""),
+    date: a.date
+  }));
+
+  // 🔍 Verifica se esiste già un'assenza per questa data
+  const exists = absences.find(a => a.email === email && a.date === date);
+
+  if (exists) {
+    // 🧹 Se già segnata, la rimuove
+    absences = absences.filter(a => !(a.email === email && a.date === date));
+  } else {
+    // 🆕 Aggiunge nuova assenza con campo "email" coerente
+    absences.push({ email, date });
+  }
+
   data.absences = absences;
   await writeDB(data);
   res.redirect(`/parent/${encodeURIComponent(email)}`);
 });
+
 
 // ----- ADMIN -----
 app.get("/admin", async (_req, res) => {
@@ -316,7 +340,24 @@ app.get("/admin", async (_req, res) => {
   const users = Array.isArray(data.users) ? data.users : [];
   const categories = Array.isArray(data.categories) ? data.categories : [];
 
-  const sortedAbsences = absences
+  // 🔥 FILTRA via assenze passate
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const upcomingAbsences = absences.filter((a) => {
+    const d = new Date(a.date);
+    return !isNaN(d) && d >= today;
+  });
+
+  // 🔄 salva su Mongo solo quelle ancora valide
+  if (upcomingAbsences.length !== absences.length) {
+    data.absences = upcomingAbsences;
+    await writeDB(data);
+    console.log("🧹 Pulizia automatica assenze passate completata");
+  }
+
+  // 📅 ordina e arricchisce
+  const sortedAbsences = upcomingAbsences
     .map((a) => {
       const u = users.find((u) => normEmail(u.email) === normEmail(a.email));
       return {
@@ -332,6 +373,7 @@ app.get("/admin", async (_req, res) => {
       return a.childName.localeCompare(b.childName);
     });
 
+  // 📆 calendario per categoria
   const calendarByCategory = {};
   for (const c of categories) {
     const dates = computeWindowDatesForCategory(c.days || []);
@@ -345,24 +387,6 @@ app.get("/admin", async (_req, res) => {
     calendarByCategory,
     formatDateShort,
   });
-});
-
-app.post("/admin/category", async (req, res) => {
-  const data = await readDB();
-  let { name, days } = req.body;
-  if (!name) return res.redirect("/admin");
-  if (!days) days = [];
-  if (!Array.isArray(days)) days = [days];
-  days = days.map((d) =>
-    d.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-  );
-  const categories = Array.isArray(data.categories) ? data.categories : [];
-  const existing = categories.find((c) => c.name === name);
-  if (existing) existing.days = days;
-  else categories.push({ name, days });
-  data.categories = categories;
-  await writeDB(data);
-  res.redirect("/admin");
 });
 
 // ----- TEST DB -----

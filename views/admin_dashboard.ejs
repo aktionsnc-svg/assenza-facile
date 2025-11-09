@@ -91,7 +91,7 @@
                  <h2>👥 Utenti registrati</h2>
                  <% if (!users || users.length === 0) { %><p>Nessun utente registrato.</p><% } else { %>
                    <table>
-                     <thead><tr><th>Genitore</th><th>Email</th><th>Figlio</th><th>Categoria</th></tr></thead>
+                     <thead><tr><th>Genitore</th><th>Email</th><th>Figlio/a</th><th>Categoria</th></tr></thead>
                      <tbody>
                        <% users.forEach(u => { %>
                          <tr><td><%= u.name %></td><td><%= u.email %></td><td><%= u.childName %></td><td><%= u.category %></td></tr>
