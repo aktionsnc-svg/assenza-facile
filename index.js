@@ -388,6 +388,160 @@ app.get("/admin", async (_req, res) => {
     formatDateShort,
   });
 });
+// =====================
+// CREA NUOVA CATEGORIA
+// =====================
+app.post("/admin/category", async (req, res) => {
+  try {
+    const data = await readDB();
+
+    const name = String(req.body.name || "").trim();
+    let days = req.body.days || [];
+
+    // Il nome della categoria è obbligatorio
+    if (!name) {
+      return res.redirect("/admin");
+    }
+
+    // Se è stato selezionato un solo giorno,
+    // Express restituisce una stringa invece di un array
+    if (!Array.isArray(days)) {
+      days = [days];
+    }
+
+    // Uniforma i nomi dei giorni
+    days = days.map((d) =>
+      String(d)
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+    );
+
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    // Controlla che non esista già una categoria con lo stesso nome
+    const existing = categories.find(
+      (c) =>
+        String(c.name).trim().toLowerCase() ===
+        name.toLowerCase()
+    );
+
+    if (existing) {
+      console.log(`⚠️ Categoria già esistente: ${name}`);
+      return res.redirect("/admin");
+    }
+
+    // Crea la nuova categoria
+    categories.push({
+      name: name,
+      days: days
+    });
+
+    data.categories = categories;
+
+    // Salva su MongoDB
+    await writeDB(data);
+
+    console.log(`✅ Nuova categoria creata: ${name}`, days);
+
+    return res.redirect("/admin");
+
+  } catch (err) {
+    console.error("❌ Errore creazione categoria:", err);
+    return res.status(500).send("Errore durante la creazione della categoria");
+  }
+});
+
+// =====================
+// MODIFICA CATEGORIA
+// =====================
+
+// Apre la pagina di modifica della categoria
+app.get("/admin/category/edit/:name", async (req, res) => {
+  try {
+    const categoryName = decodeURIComponent(req.params.name);
+
+    const data = await readDB();
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    const category = categories.find(
+      (c) => String(c.name).trim() === String(categoryName).trim()
+    );
+
+    if (!category) {
+      return res.status(404).send("Categoria non trovata");
+    }
+
+    res.render("edit_category", {
+      category
+    });
+
+  } catch (err) {
+    console.error("❌ Errore apertura modifica categoria:", err);
+    res.status(500).send("Errore durante l'apertura della categoria");
+  }
+});
+
+
+// Salva le modifiche della categoria
+app.post("/admin/category/edit/:name", async (req, res) => {
+  try {
+    const categoryName = decodeURIComponent(req.params.name);
+
+    let days = req.body.days || [];
+
+    // Se viene selezionato un solo giorno Express restituisce una stringa
+    if (!Array.isArray(days)) {
+      days = [days];
+    }
+
+    // Uniforma i nomi dei giorni
+    days = days.map((d) =>
+      String(d)
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+    );
+
+    const data = await readDB();
+
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    const category = categories.find(
+      (c) => String(c.name).trim() === String(categoryName).trim()
+    );
+
+    if (!category) {
+      return res.status(404).send("Categoria non trovata");
+    }
+
+    // Aggiorna solamente i giorni
+    category.days = days;
+
+    data.categories = categories;
+
+    await writeDB(data);
+
+    console.log(
+      `✅ Categoria ${categoryName} aggiornata:`,
+      days
+    );
+
+    res.redirect("/admin");
+
+  } catch (err) {
+    console.error("❌ Errore salvataggio categoria:", err);
+    res.status(500).send("Errore durante il salvataggio della categoria");
+  }
+});
 
 // ----- TEST DB -----
 app.get("/test-db", async (req, res) => {
