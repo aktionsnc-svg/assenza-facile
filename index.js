@@ -542,7 +542,38 @@ app.post("/admin/category/edit/:name", async (req, res) => {
     res.status(500).send("Errore durante il salvataggio della categoria");
   }
 });
+// =====================
+// ELIMINA CATEGORIA
+// =====================
+app.post("/admin/category/delete/:name", async (req, res) => {
+  try {
+    const categoryName = decodeURIComponent(req.params.name);
 
+    const data = await readDB();
+
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    // Elimina SOLO la categoria
+    // Gli utenti registrati non vengono eliminati
+    data.categories = categories.filter(
+      (c) =>
+        String(c.name).trim() !==
+        String(categoryName).trim()
+    );
+
+    await writeDB(data);
+
+    console.log(`🗑️ Categoria eliminata: ${categoryName}`);
+
+    res.redirect("/admin");
+
+  } catch (err) {
+    console.error("❌ Errore eliminazione categoria:", err);
+    res.status(500).send("Errore durante l'eliminazione della categoria");
+  }
+});
 // ----- TEST DB -----
 app.get("/test-db", async (req, res) => {
   try {
