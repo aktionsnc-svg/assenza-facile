@@ -1,332 +1,427 @@
-           <!DOCTYPE html>
-           <html lang="it">
-           <head>
-             <meta charset="UTF-8" />
-             <title>Dashboard Admin</title>
-             <style>
-               body { font-family: "Segoe UI", sans-serif; background: #f3f4f6; margin: 0; }
-               h1 { background: linear-gradient(90deg,#2563eb,#1e40af); color:white; padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; }
-               .logout-btn { background:white; color:#1e40af; border-radius:6px; padding:0.4rem 1rem; font-weight:600; text-decoration:none; transition:.2s; }
-               .logout-btn:hover { background:#1e40af; color:white; }
-               .container { max-width:1100px; margin:1.5rem auto; padding:1rem; }
-               .section { background:white; border-radius:12px; box-shadow:0 3px 8px rgba(0,0,0,.08); padding:1.5rem; margin-bottom:2rem; }
-               h2 { color:#1e3a8a; border-bottom:2px solid #e5e7eb; padding-bottom:.5rem; }
-               table { width:100%; border-collapse:collapse; margin-top:1rem; }
-               th,td { padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb; }
-               th { background:#f9fafb; color:#374151; }
-               tr:hover td { background:#f3f4f6; }
-               .btn { background:#2563eb; color:white; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; transition:.2s; }
-               .btn:hover { background:#1d4ed8; }
-               .btn-danger { background:#dc2626; }
-               .btn-danger:hover { background:#b91c1c; }
-               form { display:inline; }
-             </style>
-           </head>
-           <body>
-             <h1>Dashboard Admin <a href="/login" class="logout-btn">🔓 Logout</a></h1>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dashboard Admin</title>
 
-             <div class="container">
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      margin: 0;
+    }
 
-               <!-- =================== -->
-               <!-- ASSENZE SEGNALATE -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>📌 Assenze segnalate</h2>
-                 <% if (!absences || absences.length === 0) { %>
-                   <p>Nessuna assenza segnalata.</p>
-                 <% } else { %>
-                         <table class="table">
-                           <thead>
-                             <tr>
-                               <th>Data</th>
-                               <th>Categoria</th>
-                               <th>Iscritto</th>
-                             </tr>
-                           </thead>
-                           <tbody>
-                             <% absences.forEach(a => { %>
-                               <tr>
-                                 <td><%= formatDateShort(a.date) %></td>
-                                 <td><%= a.category %></td>
-                                 <td><%= a.childName %></td>
-                               </tr>
-                             <% }) %>
-                           </tbody>
-                         </table>
-                 <% } %>
-               </div>
+    h1 {
+      background: linear-gradient(90deg,#2563eb,#1e40af);
+      color: white;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-               <!-- =================== -->
-               <!-- CALENDARIO -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>🗓️ Calendario (prossime 2 settimane)</h2>
-                 <% 
-                   // ✅ Converti in array se per caso è un oggetto
-                   const calArray = Array.isArray(calendarByCategory)
-                     ? calendarByCategory
-                     : Object.keys(calendarByCategory || {}).map(k => ({
-                         name: k,
-                         dates: calendarByCategory[k]
-                       }));
-                 %>
-                 <% if (calArray.length === 0) { %>
-                   <p>Nessuna categoria disponibile.</p>
-                 <% } else { %>
-                   <% calArray.forEach(c => { %>
-                     <h3><%= c.name %></h3>
-                     <ul>
-                       <% (c.dates || []).forEach(date => { %>
-                         <li><%= date %></li>
-                       <% }) %>
-                     </ul>
-                   <% }) %>
-                 <% } %>
-               </div>
+    .logout-btn {
+      background: white;
+      color: #1e40af;
+      border-radius: 6px;
+      padding: 0.4rem 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: .2s;
+    }
 
-               <!-- =================== -->
-               <!-- UTENTI -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>👥 Utenti registrati</h2>
-                 <% if (!users || users.length === 0) { %><p>Nessun utente registrato.</p><% } else { %>
-                   <table>
-                     <thead>
-  <tr>
-    <th>Genitore</th>
-    <th>Email</th>
-    <th>Figlio/a</th>
-    <th>Categoria</th>
-    <th>Azioni</th>
-  </tr>
-</thead>
+    .logout-btn:hover {
+      background: #1e40af;
+      color: white;
+    }
 
-<tbody>
+    .container {
+      max-width: 1100px;
+      margin: 1.5rem auto;
+      padding: 1rem;
+    }
 
-  <% users.forEach(u => { %>
+    .section {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 3px 8px rgba(0,0,0,.08);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
 
-    <tr>
+    h2 {
+      color: #1e3a8a;
+      border-bottom: 2px solid #e5e7eb;
+      padding-bottom: .5rem;
+    }
 
-      <td><%= u.name %></td>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
 
-      <td><%= u.email %></td>
+    th,
+    td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #e5e7eb;
+    }
 
-      <td><%= u.childName %></td>
+    th {
+      background: #f9fafb;
+      color: #374151;
+    }
 
-      <td><%= u.category %></td>
+    tr:hover td {
+      background: #f3f4f6;
+    }
 
-      <td>
+    .btn {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: .2s;
+      text-decoration: none;
+      display: inline-block;
+    }
 
-        <a
-          href="/admin/user/edit/<%= encodeURIComponent(u.email) %>"
+    .btn:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    form {
+      display: inline;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>
+    Dashboard Admin
+    <a href="/login" class="logout-btn">🔓 Logout</a>
+  </h1>
+
+  <div class="container">
+
+    <!-- =================== -->
+    <!-- ASSENZE SEGNALATE -->
+    <!-- =================== -->
+
+    <div class="section">
+
+      <h2>📌 Assenze segnalate</h2>
+
+      <% if (!absences || absences.length === 0) { %>
+
+        <p>Nessuna assenza segnalata.</p>
+
+      <% } else { %>
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Categoria</th>
+              <th>Iscritto</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            <% absences.forEach(a => { %>
+
+              <tr>
+                <td><%= formatDateShort(a.date) %></td>
+                <td><%= a.category %></td>
+                <td><%= a.childName %></td>
+              </tr>
+
+            <% }) %>
+
+          </tbody>
+
+        </table>
+
+      <% } %>
+
+    </div>
+
+
+    <!-- =================== -->
+    <!-- CALENDARIO -->
+    <!-- =================== -->
+
+    <div class="section">
+
+      <h2>🗓️ Calendario (prossime 2 settimane)</h2>
+
+      <%
+
+        const calArray = Array.isArray(calendarByCategory)
+          ? calendarByCategory
+          : Object.keys(calendarByCategory || {}).map(k => ({
+              name: k,
+              dates: calendarByCategory[k]
+            }));
+
+      %>
+
+      <% if (calArray.length === 0) { %>
+
+        <p>Nessuna categoria disponibile.</p>
+
+      <% } else { %>
+
+        <% calArray.forEach(c => { %>
+
+          <h3><%= c.name %></h3>
+
+          <ul>
+
+            <% (c.dates || []).forEach(date => { %>
+
+              <li><%= date %></li>
+
+            <% }) %>
+
+          </ul>
+
+        <% }) %>
+
+      <% } %>
+
+    </div>
+
+
+    <!-- =================== -->
+    <!-- UTENTI -->
+    <!-- =================== -->
+
+    <div class="section">
+
+      <h2>👥 Utenti registrati</h2>
+
+      <% if (!users || users.length === 0) { %>
+
+        <p>Nessun utente registrato.</p>
+
+      <% } else { %>
+
+        <table>
+
+          <thead>
+            <tr>
+              <th>Genitore</th>
+              <th>Email</th>
+              <th>Figlio/a</th>
+              <th>Categoria</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
+
+          <tbody>
+
+            <% users.forEach(u => { %>
+
+              <tr>
+
+                <td><%= u.name %></td>
+
+                <td><%= u.email %></td>
+
+                <td><%= u.childName %></td>
+
+                <td><%= u.category %></td>
+
+                <td>
+
+                  <a
+                    href="/admin/user/edit/<%= encodeURIComponent(u.email) %>"
+                    class="btn"
+                  >
+                    Modifica
+                  </a>
+
+                  <form
+                    action="/admin/user/delete/<%= encodeURIComponent(u.email) %>"
+                    method="POST"
+                    onsubmit="return confirm('Vuoi davvero eliminare questo utente? Verranno eliminate anche tutte le sue assenze segnalate.');"
+                  >
+
+                    <button
+                      type="submit"
+                      class="btn btn-danger"
+                    >
+                      Elimina
+                    </button>
+
+                  </form>
+
+                </td>
+
+              </tr>
+
+            <% }) %>
+
+          </tbody>
+
+        </table>
+
+      <% } %>
+
+    </div>
+
+
+    <!-- =================== -->
+    <!-- GESTIONE CATEGORIE -->
+    <!-- =================== -->
+
+    <div class="section">
+
+      <h2>⚙️ Gestione categorie</h2>
+
+      <form action="/admin/category" method="POST">
+
+        <label>
+          Nome categoria:
+          <input
+            type="text"
+            name="name"
+            required
+          >
+        </label>
+
+        <br><br>
+
+        Giorni allenamento:
+
+        <br>
+
+        <label>
+          <input type="checkbox" name="days" value="lunedi">
+          Lun
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="martedi">
+          Mar
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="mercoledi">
+          Mer
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="giovedi">
+          Gio
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="venerdi">
+          Ven
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="sabato">
+          Sab
+        </label>
+
+        <label>
+          <input type="checkbox" name="days" value="domenica">
+          Dom
+        </label>
+
+        <br>
+
+        <button
+          type="submit"
           class="btn"
+          style="margin-top:.5rem;"
         >
-          Modifica
-        </a>
+          Aggiungi / Aggiorna
+        </button>
 
-        <form
-          action="/admin/user/delete/<%= encodeURIComponent(u.email) %>"
-          method="POST"
-          onsubmit="return confirm('Vuoi davvero eliminare <%= u.childName %>? Verranno eliminate anche le sue assenze segnalate.');"
-        >
-          <button class="btn btn-danger">
-            Elimina
-          </button>
-        </form>
+      </form>
 
-      </td>
 
-    </tr>
+      <% if (categories && categories.length > 0) { %>
 
-  <% }) %>
+        <table>
 
-</tbody>
-                   </table>
-                 <% } %>
-               </div>
+          <thead>
+            <tr>
+              <th>Categoria</th>
+              <th>Giorni</th>
+              <th>Azioni</th>
+            </tr>
+          </thead>
 
-               <!-- =================== -->
-               <!-- GESTIONE CATEGORIE -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>⚙️ Gestione categorie</h2>
-                 <form action="/admin/category" method="POST">
-                   <label>Nome categoria: <input type="text" name="name" required></label><br>
-                   Giorni allenamento:<br>
-                   <label><input type="checkbox" name="days" value="lunedi"> Lun</label>
-                   <label><input type="checkbox" name="days" value="martedi"> Mar</label>
-                   <label><input type="checkbox" name="days" value="mercoledi"> Mer</label>
-                   <label><input type="checkbox" name="days" value="giovedi"> Gio</label>
-                   <label><input type="checkbox" name="days" value="venerdi"> Ven</label>
-                   <label><input type="checkbox" name="days" value="sabato"> Sab</label>
-                   <label><input type="checkbox" name="days" value="domenica"> Dom</label><br>
-                   <button class="btn" style="margin-top:.5rem;">Aggiungi / Aggiorna</button>
-                 </form>
+          <tbody>
 
-                 <% if (categories && categories.length > 0) { %>
-                   <table>
-                     <thead><tr><th>Categoria</th><th>Giorni</th><th>Azioni</th></tr></thead>
-                     <tbody>
-                       <% categories.forEach(c => { %>
-                         <tr>
-                           <td><%= c.name %></td>
-                           <td><%= (c.days || []).join(", ") %></td>
-                           <td>
-                             <a href="/admin/category/edit/<%= encodeURIComponent(c.name) %>" class="btn">Modifica</a>
-                             <form action="/admin/category/delete/<%= encodeURIComponent(c.name) %>" method="POST">
-                               <button class="btn btn-danger">Elimina</button>
-                             </form>
-                           </td>
-                         </tr>
-                       <% }) %>
-                     </tbody>
-                   </table>
-                 <% } %>
-               </div>
-             </div>
-           </body>
-           </html>
-           <!DOCTYPE html>
-           <html lang="it">
-           <head>
-             <meta charset="UTF-8" />
-             <title>Dashboard Admin</title>
-             <style>
-               body { font-family: "Segoe UI", sans-serif; background: #f3f4f6; margin: 0; }
-               h1 { background: linear-gradient(90deg,#2563eb,#1e40af); color:white; padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; }
-               .logout-btn { background:white; color:#1e40af; border-radius:6px; padding:0.4rem 1rem; font-weight:600; text-decoration:none; transition:.2s; }
-               .logout-btn:hover { background:#1e40af; color:white; }
-               .container { max-width:1100px; margin:1.5rem auto; padding:1rem; }
-               .section { background:white; border-radius:12px; box-shadow:0 3px 8px rgba(0,0,0,.08); padding:1.5rem; margin-bottom:2rem; }
-               h2 { color:#1e3a8a; border-bottom:2px solid #e5e7eb; padding-bottom:.5rem; }
-               table { width:100%; border-collapse:collapse; margin-top:1rem; }
-               th,td { padding:10px 12px; text-align:left; border-bottom:1px solid #e5e7eb; }
-               th { background:#f9fafb; color:#374151; }
-               tr:hover td { background:#f3f4f6; }
-               .btn { background:#2563eb; color:white; border:none; border-radius:6px; padding:6px 10px; cursor:pointer; transition:.2s; }
-               .btn:hover { background:#1d4ed8; }
-               .btn-danger { background:#dc2626; }
-               .btn-danger:hover { background:#b91c1c; }
-               form { display:inline; }
-             </style>
-           </head>
-           <body>
-             <h1>Dashboard Admin <a href="/login" class="logout-btn">🔓 Logout</a></h1>
+            <% categories.forEach(c => { %>
 
-             <div class="container">
+              <tr>
 
-               <!-- =================== -->
-               <!-- ASSENZE SEGNALATE -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>📌 Assenze segnalate</h2>
-                 <% if (!absences || absences.length === 0) { %>
-                   <p>Nessuna assenza segnalata.</p>
-                 <% } else { %>
-                         <table class="table">
-                           <thead>
-                             <tr>
-                               <th>Data</th>
-                               <th>Categoria</th>
-                               <th>Iscritto</th>
-                             </tr>
-                           </thead>
-                           <tbody>
-                             <% absences.forEach(a => { %>
-                               <tr>
-                                 <td><%= formatDateShort(a.date) %></td>
-                                 <td><%= a.category %></td>
-                                 <td><%= a.childName %></td>
-                               </tr>
-                             <% }) %>
-                           </tbody>
-                         </table>
-                 <% } %>
-               </div>
+                <td><%= c.name %></td>
 
-               <!-- =================== -->
-               <!-- CALENDARIO -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>🗓️ Calendario (prossime 2 settimane)</h2>
-                 <% 
-                   // ✅ Converti in array se per caso è un oggetto
-                   const calArray = Array.isArray(calendarByCategory)
-                     ? calendarByCategory
-                     : Object.keys(calendarByCategory || {}).map(k => ({
-                         name: k,
-                         dates: calendarByCategory[k]
-                       }));
-                 %>
-                 <% if (calArray.length === 0) { %>
-                   <p>Nessuna categoria disponibile.</p>
-                 <% } else { %>
-                   <% calArray.forEach(c => { %>
-                     <h3><%= c.name %></h3>
-                     <ul>
-                       <% (c.dates || []).forEach(date => { %>
-                         <li><%= date %></li>
-                       <% }) %>
-                     </ul>
-                   <% }) %>
-                 <% } %>
-               </div>
+                <td>
+                  <%= (c.days || []).join(", ") %>
+                </td>
 
-               <!-- =================== -->
-               <!-- UTENTI -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>👥 Utenti registrati</h2>
-                 <% if (!users || users.length === 0) { %><p>Nessun utente registrato.</p><% } else { %>
-                   <table>
-                     <thead><tr><th>Genitore</th><th>Email</th><th>Figlio/a</th><th>Categoria</th></tr></thead>
-                     <tbody>
-                       <% users.forEach(u => { %>
-                         <tr><td><%= u.name %></td><td><%= u.email %></td><td><%= u.childName %></td><td><%= u.category %></td></tr>
-                       <% }) %>
-                     </tbody>
-                   </table>
-                 <% } %>
-               </div>
+                <td>
 
-               <!-- =================== -->
-               <!-- GESTIONE CATEGORIE -->
-               <!-- =================== -->
-               <div class="section">
-                 <h2>⚙️ Gestione categorie</h2>
-                 <form action="/admin/category" method="POST">
-                   <label>Nome categoria: <input type="text" name="name" required></label><br>
-                   Giorni allenamento:<br>
-                   <label><input type="checkbox" name="days" value="lunedi"> Lun</label>
-                   <label><input type="checkbox" name="days" value="martedi"> Mar</label>
-                   <label><input type="checkbox" name="days" value="mercoledi"> Mer</label>
-                   <label><input type="checkbox" name="days" value="giovedi"> Gio</label>
-                   <label><input type="checkbox" name="days" value="venerdi"> Ven</label>
-                   <label><input type="checkbox" name="days" value="sabato"> Sab</label>
-                   <label><input type="checkbox" name="days" value="domenica"> Dom</label><br>
-                   <button class="btn" style="margin-top:.5rem;">Aggiungi / Aggiorna</button>
-                 </form>
+                  <a
+                    href="/admin/category/edit/<%= encodeURIComponent(c.name) %>"
+                    class="btn"
+                  >
+                    Modifica
+                  </a>
 
-                 <% if (categories && categories.length > 0) { %>
-                   <table>
-                     <thead><tr><th>Categoria</th><th>Giorni</th><th>Azioni</th></tr></thead>
-                     <tbody>
-                       <% categories.forEach(c => { %>
-                         <tr>
-                           <td><%= c.name %></td>
-                           <td><%= (c.days || []).join(", ") %></td>
-                           <td>
-                             <a href="/admin/category/edit/<%= encodeURIComponent(c.name) %>" class="btn">Modifica</a>
-                             <form action="/admin/category/delete/<%= encodeURIComponent(c.name) %>" method="POST">
-                               <button class="btn btn-danger">Elimina</button>
-                             </form>
-                           </td>
-                         </tr>
-                       <% }) %>
-                     </tbody>
-                   </table>
-                 <% } %>
-               </div>
-             </div>
-           </body>
-           </html>
+                  <form
+                    action="/admin/category/delete/<%= encodeURIComponent(c.name) %>"
+                    method="POST"
+                    onsubmit="return confirm('Vuoi davvero eliminare questa categoria? Gli utenti registrati non verranno eliminati.');"
+                  >
+
+                    <button
+                      type="submit"
+                      class="btn btn-danger"
+                    >
+                      Elimina
+                    </button>
+
+                  </form>
+
+                </td>
+
+              </tr>
+
+            <% }) %>
+
+          </tbody>
+
+        </table>
+
+      <% } %>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
