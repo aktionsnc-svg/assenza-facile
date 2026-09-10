@@ -711,6 +711,195 @@ app.post("/admin/user/delete/:email", async (req, res) => {
   }
 });
 
+// =====================
+// MODIFICA DATI GENITORE
+// =====================
+
+// Apre la pagina "I miei dati"
+app.get("/parent/:email/edit", async (req, res) => {
+  try {
+    const email = normEmail(
+      decodeURIComponent(req.params.email)
+    );
+
+    const data = await readDB();
+
+    const users = Array.isArray(data.users)
+      ? data.users
+      : [];
+
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    const user = users.find(
+      (u) => normEmail(u.email) === email
+    );
+
+    if (!user) {
+      return res.redirect("/login");
+    }
+
+    res.render("edit_parent", {
+      user,
+      categories: [...categories].sort(
+        (a, b) => a.name.localeCompare(b.name)
+      ),
+      error: null
+    });
+
+  } catch (err) {
+    console.error(
+      "❌ Errore apertura dati genitore:",
+      err
+    );
+
+    res.status(500).send(
+      "Errore durante l'apertura dei dati"
+    );
+  }
+});
+
+
+// Salva le modifiche del genitore
+app.post("/parent/:email/edit", async (req, res) => {
+  try {
+    const email = normEmail(
+      decodeURIComponent(req.params.email)
+    );
+
+    const name = String(
+      req.body.name || ""
+    ).trim();
+
+    const childName = String(
+      req.body.childName || ""
+    ).trim();
+
+    const category = String(
+      req.body.category || ""
+    ).trim();
+
+    const currentPassword = normPass(
+      req.body.currentPassword
+    );
+
+    const newPassword = normPass(
+      req.body.newPassword
+    );
+
+    const data = await readDB();
+
+    const users = Array.isArray(data.users)
+      ? data.users
+      : [];
+
+    const categories = Array.isArray(data.categories)
+      ? data.categories
+      : [];
+
+    const user = users.find(
+      (u) => normEmail(u.email) === email
+    );
+
+    if (!user) {
+      return res.redirect("/login");
+    }
+
+
+    // =====================
+    // CONTROLLO PASSWORD
+    // =====================
+
+    if (
+      normPass(user.password) !== currentPassword
+    ) {
+      return res.render("edit_parent", {
+        user,
+        categories: [...categories].sort(
+          (a, b) => a.name.localeCompare(b.name)
+        ),
+        error: "La password attuale non è corretta."
+      });
+    }
+
+
+    // =====================
+    // CONTROLLO DATI
+    // =====================
+
+    if (!name || !childName || !category) {
+      return res.render("edit_parent", {
+        user,
+        categories: [...categories].sort(
+          (a, b) => a.name.localeCompare(b.name)
+        ),
+        error: "Compila tutti i campi obbligatori."
+      });
+    }
+
+
+    // =====================
+    // CONTROLLO CATEGORIA
+    // =====================
+
+    const categoryExists = categories.some(
+      (c) =>
+        String(c.name).trim() === category
+    );
+
+    if (!categoryExists) {
+      return res.render("edit_parent", {
+        user,
+        categories: [...categories].sort(
+          (a, b) => a.name.localeCompare(b.name)
+        ),
+        error: "La categoria selezionata non è valida."
+      });
+    }
+
+
+    // =====================
+    // AGGIORNA DATI
+    // =====================
+
+    user.name = name;
+    user.childName = childName;
+    user.category = category;
+
+
+    // Cambia la password solamente
+    // se ne è stata inserita una nuova
+    if (newPassword) {
+      user.password = newPassword;
+    }
+
+
+    data.users = users;
+
+    await writeDB(data);
+
+    console.log(
+      `✅ Dati genitore aggiornati: ${email}`
+    );
+
+    res.redirect(
+      `/parent/${encodeURIComponent(email)}`
+    );
+
+  } catch (err) {
+    console.error(
+      "❌ Errore modifica dati genitore:",
+      err
+    );
+
+    res.status(500).send(
+      "Errore durante il salvataggio dei dati"
+    );
+  }
+});
+
+
 // ----- TEST DB -----
 app.get("/test-db", async (req, res) => {
   try {
